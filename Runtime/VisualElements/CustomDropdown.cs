@@ -93,7 +93,7 @@ namespace VM233.UIElements
                 name = "Toggle"
             };
             Toggle.AddToClassList(TOGGLE_CLASS_NAME);
-            Toggle.labelElement.RegisterCallback<ChangeEvent<string>>(OnToggleLabelTextChanged);
+            Toggle.RegisterCallback<ChangeEvent<string>>(OnToggleTextChanged);
             hierarchy.Add(Toggle);
 
             DropdownContainerWrapper = new VisualElement
@@ -295,7 +295,7 @@ namespace VM233.UIElements
             SetOpen(evt.newValue);
         }
 
-        private static void OnToggleLabelTextChanged(ChangeEvent<string> evt)
+        private static void OnToggleTextChanged(ChangeEvent<string> evt)
         {
             evt.StopPropagation();
         }
