@@ -1,11 +1,29 @@
 using System.Collections.Generic;
 using NUnit.Framework;
+using UnityEditor;
+using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace VM233.UIElements.Editor.Tests
 {
     public class CustomDropdownTests
     {
+        private EditorWindow window;
+
+        [SetUp]
+        public void SetUp()
+        {
+            window = ScriptableObject.CreateInstance<EditorWindow>();
+            window.Show();
+        }
+
+        [TearDown]
+        public void TearDown()
+        {
+            window.Close();
+            Object.DestroyImmediate(window);
+        }
+
         [Test]
         public void ConstructorCreatesExpectedHierarchyAndClasses()
         {
@@ -46,9 +64,12 @@ namespace VM233.UIElements.Editor.Tests
                 Options = new List<string> { "One", "Two" }
             };
             var selectionIndex = -1;
+            var changeCount = 0;
             string selectionValue = null;
             string previousValue = null;
             string newValue = null;
+
+            window.rootVisualElement.Add(dropdown);
 
             dropdown.SelectionChanged += (index, value) =>
             {
@@ -57,6 +78,7 @@ namespace VM233.UIElements.Editor.Tests
             };
             dropdown.RegisterValueChangedCallback(evt =>
             {
+                changeCount++;
                 previousValue = evt.previousValue;
                 newValue = evt.newValue;
             });
@@ -65,7 +87,8 @@ namespace VM233.UIElements.Editor.Tests
 
             Assert.That(selectionIndex, Is.EqualTo(1));
             Assert.That(selectionValue, Is.EqualTo("Two"));
-            Assert.That(previousValue, Is.Null);
+            Assert.That(changeCount, Is.EqualTo(1));
+            Assert.That(previousValue, Is.EqualTo("One"));
             Assert.That(newValue, Is.EqualTo("Two"));
         }
 
@@ -77,6 +100,8 @@ namespace VM233.UIElements.Editor.Tests
                 Options = new List<string> { "One", "Two" }
             };
             var changeCount = 0;
+
+            window.rootVisualElement.Add(dropdown);
             dropdown.RegisterValueChangedCallback(_ => changeCount++);
 
             dropdown.SetValueWithoutNotify("Two");
