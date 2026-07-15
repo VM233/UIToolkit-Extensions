@@ -1,0 +1,14 @@
+{
+  "name": "VM233.UIToolkitExtensions",
+  "rootNamespace": "VM233.UIElements",
+  "references": [],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

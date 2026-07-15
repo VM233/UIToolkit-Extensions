@@ -1,0 +1,22 @@
+{
+  "name": "com.vm233.ui-toolkit-extensions",
+  "version": "0.1.0",
+  "displayName": "UI Toolkit Extensions",
+  "description": "Reusable, commonly used UI Toolkit controls and control extensions.",
+  "unity": "6000.0",
+  "type": "library",
+  "author": {
+    "name": "VM233",
+    "url": "https://github.com/VM233"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/VM233/UIToolkit-Extensions.git"
+  },
+  "keywords": [
+    "ui-toolkit",
+    "controls",
+    "visual-elements",
+    "dropdown"
+  ]
+}

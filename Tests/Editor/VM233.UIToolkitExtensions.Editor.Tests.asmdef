@@ -1,0 +1,21 @@
+{
+  "name": "VM233.UIToolkitExtensions.Editor.Tests",
+  "rootNamespace": "VM233.UIElements.Editor.Tests",
+  "references": [
+    "VM233.UIToolkitExtensions"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false,
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ]
+}
