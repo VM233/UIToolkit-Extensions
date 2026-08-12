@@ -51,6 +51,28 @@ dropdown.SelectionChanged += (index, value) =>
 };
 ```
 
+## BoolStateVisualElement
+
+`BoolStateVisualElement` owns a programmatic boolean state without accepting pointer or keyboard
+input. Set `value` or call `SetValueWithoutNotify`; USS can consume the state through `:checked`.
+The control intentionally has no interactive `:active` contract.
+
+```xml
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <VM233.UIElements.BoolStateVisualElement
+        name="ExampleState"
+        value="true"
+        class="example-state"/>
+</ui:UXML>
+```
+
+```csharp
+using VM233.UIElements;
+
+var state = root.Q<BoolStateVisualElement>("ExampleState");
+state.SetValueWithoutNotify(true);
+```
+
 ## Package structure
 
 - `Runtime/VisualElements`: reusable controls and VisualElement extensions.

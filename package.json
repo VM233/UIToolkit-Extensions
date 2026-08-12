@@ -1,6 +1,6 @@
 {
   "name": "com.vm233.ui-toolkit-extensions",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "displayName": "UI Toolkit Extensions",
   "description": "Reusable, commonly used UI Toolkit controls and control extensions.",
   "unity": "6000.0",

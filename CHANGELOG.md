@@ -2,6 +2,13 @@
 
 All notable changes to this package are documented in this file.
 
+## [0.2.0] - 2026-08-12
+
+### Added
+
+- Added `BoolStateVisualElement`, a non-interactive native boolean field whose `value` drives the
+  `:checked` pseudo-state without exposing pointer, keyboard, or `:active` interaction.
+
 ## [0.1.0] - 2026-07-15
 
 ### Added
