@@ -2,6 +2,13 @@
 
 All notable changes to this package are documented in this file.
 
+## [0.3.0] - 2026-08-15
+
+### Added
+
+- Added `RotatingVisualElement`, a UXML-enabled visual element that rotates at a configurable number
+  of degrees per second using unscaled real time while attached to a panel.
+
 ## [0.2.0] - 2026-08-12
 
 ### Added

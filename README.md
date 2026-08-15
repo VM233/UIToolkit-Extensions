@@ -73,6 +73,30 @@ var state = root.Q<BoolStateVisualElement>("ExampleState");
 state.SetValueWithoutNotify(true);
 ```
 
+## RotatingVisualElement
+
+`RotatingVisualElement` continuously rotates itself at a configurable angular velocity while it is
+attached to a panel. The `degrees-per-second` UXML attribute uses unscaled real time: positive values
+rotate clockwise and negative values rotate counterclockwise. The control owns its `rotate` style;
+consumers provide its size, background, and other visual styling.
+
+```xml
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <VM233.UIElements.RotatingVisualElement
+        class="rotating-decoration"
+        degrees-per-second="15"/>
+</ui:UXML>
+```
+
+```csharp
+using VM233.UIElements;
+
+var decoration = new RotatingVisualElement
+{
+    DegreesPerSecond = 15f
+};
+```
+
 ## Package structure
 
 - `Runtime/VisualElements`: reusable controls and VisualElement extensions.
