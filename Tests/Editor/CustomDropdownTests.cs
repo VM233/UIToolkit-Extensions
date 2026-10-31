@@ -182,9 +182,12 @@ namespace VM233.UIElements.Editor.Tests
                     yield return null;
                     var bounds = dropdown.DropdownContainer.worldBound;
                     var viewport = dropdown.panel.visualTree.worldBound;
+                    var anchor = dropdown.worldBound;
+                    var edge = above ? bounds.yMax - anchor.yMin : bounds.yMin - anchor.yMax;
                     if (dropdown.DropdownContainerWrapper.parent != dropdown && bounds.height > 0 &&
                         bounds.xMin >= viewport.xMin - 1 && bounds.xMax <= viewport.xMax + 1 &&
-                        bounds.yMin >= viewport.yMin - 1 && bounds.yMax <= viewport.yMax + 1)
+                        bounds.yMin >= viewport.yMin - 1 && bounds.yMax <= viewport.yMax + 1 &&
+                        Mathf.Abs(edge) <= 1)
                         break;
                 }
                 var menu = dropdown.DropdownContainer.worldBound;
