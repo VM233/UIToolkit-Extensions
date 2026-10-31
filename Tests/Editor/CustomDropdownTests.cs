@@ -1,8 +1,10 @@
+using System.Collections;
 using System.Collections.Generic;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
+using UnityEngine.TestTools;
 
 namespace VM233.UIElements.Editor.Tests
 {
@@ -130,6 +132,78 @@ namespace VM233.UIElements.Editor.Tests
             Assert.That(dropdown.IsOpen, Is.False);
             Assert.That(dropdown.ClassListContains(CustomDropdown.OPEN_CLASS_NAME), Is.False);
             Assert.That(dropdown.DropdownContainerWrapper.style.display.value, Is.EqualTo(DisplayStyle.None));
+        }
+
+        [UnityTest]
+        public IEnumerator MenuUsesSpaceBelowNearTop() => CheckOverlay(new Vector2(30, 20), 1, false);
+
+        [UnityTest]
+        public IEnumerator MenuUsesSpaceAboveNearBottomAndAfterReopen() =>
+            CheckOverlay(new Vector2(30, 330), 1, true);
+
+        [UnityTest]
+        public IEnumerator MenuStaysInsideRightEdge() => CheckOverlay(new Vector2(460, 20), 1, false);
+
+        [UnityTest]
+        public IEnumerator TransformedAnchorUsesNativeViewportGeometry() =>
+            CheckOverlay(new Vector2(20, 180), 2, true);
+
+        private IEnumerator CheckOverlay(Vector2 position, float scale, bool above)
+        {
+            window.position = new Rect(100, 100, 500, 400);
+            var host = new VisualElement();
+            host.style.position = Position.Absolute;
+            host.style.left = 0;
+            host.style.top = 0;
+            host.style.width = 500 / scale;
+            host.style.height = 400 / scale;
+            host.style.transformOrigin = new TransformOrigin(0, 0);
+            host.style.scale = new Scale(new Vector3(scale, scale, 1));
+            window.rootVisualElement.Add(host);
+            var dropdown = new CustomDropdown { Options = new List<string> { "One", "Two", "Three" } };
+            dropdown.style.position = Position.Absolute;
+            dropdown.style.left = position.x;
+            dropdown.style.top = position.y;
+            dropdown.style.width = 30;
+            dropdown.style.height = 15;
+            dropdown.DropdownContainerWrapper.style.position = Position.Absolute;
+            dropdown.DropdownContainerWrapper.style.bottom = 0;
+            dropdown.DropdownContainer.style.position = Position.Absolute;
+            dropdown.DropdownContainer.style.width = 140;
+            dropdown.DropdownContainer.style.height = 160;
+            host.Add(dropdown);
+            yield return null;
+
+            for (var opening = 0; opening < 2; opening++)
+            {
+                dropdown.IsOpen = true;
+                for (var frame = 0; frame < 120; frame++)
+                {
+                    yield return null;
+                    var bounds = dropdown.DropdownContainer.worldBound;
+                    var viewport = dropdown.panel.visualTree.worldBound;
+                    if (dropdown.DropdownContainerWrapper.parent != dropdown && bounds.height > 0 &&
+                        bounds.xMin >= viewport.xMin - 1 && bounds.xMax <= viewport.xMax + 1 &&
+                        bounds.yMin >= viewport.yMin - 1 && bounds.yMax <= viewport.yMax + 1)
+                        break;
+                }
+                var menu = dropdown.DropdownContainer.worldBound;
+                var panelBounds = dropdown.panel.visualTree.worldBound;
+                Assert.That(menu.width, Is.EqualTo(140).Within(1));
+                Assert.That(menu.height, Is.EqualTo(160).Within(1));
+                Assert.That(menu.xMin, Is.GreaterThanOrEqualTo(panelBounds.xMin - 1));
+                Assert.That(menu.xMax, Is.LessThanOrEqualTo(panelBounds.xMax + 1));
+                Assert.That(menu.yMin, Is.GreaterThanOrEqualTo(panelBounds.yMin - 1));
+                Assert.That(menu.yMax, Is.LessThanOrEqualTo(panelBounds.yMax + 1));
+                if (above)
+                    Assert.That(menu.yMax, Is.EqualTo(dropdown.worldBound.yMin).Within(1));
+                else
+                    Assert.That(menu.yMin, Is.EqualTo(dropdown.worldBound.yMax).Within(1));
+                dropdown.IsOpen = false;
+                Assert.That(dropdown.DropdownContainerWrapper.parent, Is.SameAs(dropdown));
+                Assert.That(dropdown.DropdownContainer.style.top.keyword, Is.EqualTo(StyleKeyword.Null));
+                yield return null;
+            }
         }
     }
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace VM233.UIElements
@@ -118,6 +119,7 @@ namespace VM233.UIElements
             };
             DropdownContainer.AddToClassList(DROPDOWN_CONTAINER_CLASS_NAME);
             DropdownContainerWrapper.Add(DropdownContainer);
+            DropdownContainer.RegisterCallback<GeometryChangedEvent>(_ => UpdateOverlayPosition());
 
             Toggle.RegisterValueChangedCallback(OnToggleValueChanged);
             RegisterCallback<AttachToPanelEvent>(OnAttachToPanel);
@@ -432,12 +434,35 @@ namespace VM233.UIElements
             dropdownOverlay.style.bottom = StyleKeyword.Auto;
             dropdownOverlay.style.width = bottomRight.x - topLeft.x;
             dropdownOverlay.style.height = bottomRight.y - topLeft.y;
+
+            var viewport = panel.visualTree.worldBound;
+            var menuSize = DropdownContainer.worldBound.size;
+            if (menuSize.x <= 0 || menuSize.y <= 0 ||
+                float.IsNaN(menuSize.x) || float.IsNaN(menuSize.y))
+            {
+                return;
+            }
+
+            var anchor = worldBound;
+            var below = viewport.yMax - anchor.yMax;
+            var above = anchor.yMin - viewport.yMin;
+            var menuTop = below >= menuSize.y || below >= above
+                ? anchor.yMax : anchor.yMin - menuSize.y;
+            menuTop = Mathf.Clamp(menuTop, viewport.yMin,
+                Mathf.Max(viewport.yMin, viewport.yMax - menuSize.y));
+            var menuLeft = Mathf.Clamp(anchor.xMin, viewport.xMin,
+                Mathf.Max(viewport.xMin, viewport.xMax - menuSize.x));
+            var menuPosition = DropdownContainerWrapper.WorldToLocal(new Vector2(menuLeft, menuTop));
+            DropdownContainer.style.left = menuPosition.x;
+            DropdownContainer.style.top = menuPosition.y;
         }
 
         private void RestoreDropdownContainerWrapper()
         {
             overlayPositionItem?.Pause();
             overlayPositionItem = null;
+            DropdownContainer.style.left = StyleKeyword.Null;
+            DropdownContainer.style.top = StyleKeyword.Null;
 
             if (DropdownContainerWrapper.parent != this)
             {

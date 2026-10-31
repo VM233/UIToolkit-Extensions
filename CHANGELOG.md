@@ -2,6 +2,16 @@
 
 All notable changes to this package are documented in this file.
 
+## [0.3.1] - 2026-10-31
+
+### Fixed
+
+- Dropdown overlays choose above or below from measured menu and panel bounds, and constrain
+  horizontal placement to the viewport. Large UI scales no longer hide the final options below
+  the screen. Menus taller than the entire viewport retain their natural size, aligned to its top.
+- Restore authored menu offsets on close; update placement after native menu geometry changes.
+- Added native panel regressions for top, bottom, right-edge, scaled and reopen placement.
+
 ## [0.3.0] - 2026-08-15
 
 ### Added
