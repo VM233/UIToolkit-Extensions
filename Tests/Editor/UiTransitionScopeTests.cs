@@ -17,6 +17,7 @@ namespace VM233.UIElements.Editor.Tests
         private readonly UiTransitionSite site = new("Fixture.cs", "Stimulus", 1, "region");
         private readonly List<UiTransitionFrame> frames = new();
         private EditorWindow previousFocus;
+        private ControlledTransitionRenderer renderer;
 
         [SetUp]
         public void SetUp()
@@ -26,8 +27,9 @@ namespace VM233.UIElements.Editor.Tests
             window.position = new Rect(40, 40, 320, 240); window.Show();
             region = new VisualElement(); region.style.height = 80; region.style.width = 160;
             window.rootVisualElement.Add(region);
+            renderer = new ControlledTransitionRenderer();
             scope = new UiTransitionScope(window.rootVisualElement, () => .16f, () => 10,
-                () => EditorApplication.timeSinceStartup);
+                () => EditorApplication.timeSinceStartup, renderer);
             scope.Observed += frames.Add;
         }
 
@@ -96,7 +98,7 @@ namespace VM233.UIElements.Editor.Tests
         }
 
         [UnityTest]
-        public IEnumerator ContentReplacementKeepsOldContentUntilItsExitAndUsesLatestPublication()
+        public IEnumerator ContentReplacementRetainsSourceUntilCaptureAndNewLayoutAndUsesLatestPublication()
         {
             yield return null; scope.Publish();
             string content = "first";
@@ -104,16 +106,32 @@ namespace VM233.UIElements.Editor.Tests
             scope.Replace(region, 2, () => content = "superseded", site);
             scope.Replace(region, 3, () => content = "latest", site);
             Assert.That(content, Is.EqualTo("first"));
-            bool oldMidframe = false;
+            yield return Until(() => renderer.CapturePending);
+            Assert.That(content, Is.EqualTo("first"));
+            renderer.CompleteCapture();
+            yield return Until(() => renderer.RenderPending);
+            Assert.That(content, Is.EqualTo("latest"));
+            Assert.That(renderer.Image.Opacity, Is.EqualTo(1));
+            Assert.That(scope.HasRetainedImage, Is.True);
+            Assert.That(scope.Observe()[0].Phase, Is.EqualTo(UiTransitionPhase.WaitingReplacementLayout));
+            bool compositeMidframe = false;
             scope.Observed += frame =>
             {
-                if (frame.Phase == UiTransitionPhase.ReplacingOutgoing && frame.Opacity > 0 && frame.Opacity < 1)
-                { Assert.That(content, Is.EqualTo("first"), History()); oldMidframe = true; }
+                if (frame.Phase == UiTransitionPhase.Replacing && frame.Opacity > 0 && frame.Opacity < 1)
+                {
+                    Assert.That(content, Is.EqualTo("latest"), History());
+                    Assert.That(frame.SourcePixelsRetained, Is.True);
+                    Assert.That(renderer.Image.Opacity, Is.EqualTo(1 - frame.Opacity).Within(.001));
+                    compositeMidframe = true;
+                }
             };
+            renderer.CompleteRender();
             yield return Until(() => content == "latest" && !scope.Observe()[0].Moving);
-            Assert.That(oldMidframe, Is.True, History());
+            Assert.That(compositeMidframe, Is.True, History());
             Assert.That(content, Is.EqualTo("latest"));
             Assert.That(scope.Observe()[0].Moving, Is.False);
+            Assert.That(scope.HasRetainedImage, Is.False);
+            Assert.That(renderer.Image.Disposals, Is.EqualTo(1));
             Assert.That(region.resolvedStyle.opacity, Is.EqualTo(1).Within(.001));
         }
 
@@ -123,34 +141,74 @@ namespace VM233.UIElements.Editor.Tests
             yield return null; scope.Publish();
             string content = "first";
             scope.Replace(region, 1, () => content = "first", site);
-            bool reentered = false;
-            scope.Observed += frame =>
-            {
-                if (!reentered && frame.Phase == UiTransitionPhase.ReplacingOutgoing && frame.Opacity > 0 && frame.Opacity < 1)
-                { reentered = true; scope.Replace(region, 1, () => content = "first", site); }
-            };
             scope.Replace(region, 2, () => content = "wrong", site);
-            yield return Until(() => reentered && !scope.Observe()[0].Moving);
+            yield return Until(() => renderer.CapturePending);
+            var capture = renderer.CaptureTask;
+            scope.Replace(region, 1, () => content = "first", site);
+            Assert.That(capture.IsCanceled, Is.True);
+            yield return Until(() => !scope.Observe()[0].Moving);
             Assert.That(content, Is.EqualTo("first"));
             Assert.That(scope.Observe()[0].Moving, Is.False);
             Assert.That(region.resolvedStyle.opacity, Is.EqualTo(1).Within(.001), History());
         }
 
         [UnityTest]
-        public IEnumerator LatestRequestAtPublicationBoundaryCannotOverwriteIncomingSegment()
+        public IEnumerator LatestRequestAtPublicationBoundaryWaitsForItsOwnSourceCapture()
         {
             yield return null; scope.Publish();
             string content = "first"; bool boundary = false;
             scope.Replace(region, 1, () => content = "first", site);
             scope.Observed += frame =>
             {
-                if (!boundary && frame.Phase == UiTransitionPhase.ReplacingIncoming)
+                if (!boundary && frame.Phase == UiTransitionPhase.WaitingReplacementLayout)
                 { boundary = true; scope.Replace(region, 3, () => content = "boundary", site); }
             };
             scope.Replace(region, 2, () => content = "second", site);
+            yield return Until(() => renderer.CapturePending); renderer.CompleteCapture();
+            yield return Until(() => renderer.RenderPending);
+            Assert.That(content, Is.EqualTo("second")); renderer.CompleteRender();
+            yield return Until(() => renderer.CapturePending);
+            Assert.That(content, Is.EqualTo("second"));
+            Assert.That(renderer.Image.Disposals, Is.EqualTo(1)); renderer.CompleteCapture();
+            yield return Until(() => renderer.RenderPending); renderer.CompleteRender();
             yield return Until(() => boundary && content == "boundary" && !scope.Observe()[0].Moving);
             Assert.That(content, Is.EqualTo("boundary"), History());
             Assert.That(region.resolvedStyle.opacity, Is.EqualTo(1).Within(.001), History());
+        }
+
+        [UnityTest]
+        public IEnumerator RootRetirementJoinsTheOwnedFrameWaitAndReleasesTheRetainedImage()
+        {
+            yield return null; scope.Publish();
+            scope.Replace(region, 1, () => { }, site);
+            scope.Replace(region, 2, () => { }, site);
+            yield return Until(() => renderer.CapturePending); renderer.CompleteCapture();
+            yield return Until(() => renderer.RenderPending);
+            var wait = renderer.RenderTask;
+            scope.Retire();
+            Assert.That(wait.IsCanceled, Is.True);
+            Assert.That(scope.HasRetainedImage, Is.False);
+            Assert.That(renderer.Image.Disposals, Is.EqualTo(1));
+            Assert.That(scope.RegionCount, Is.Zero);
+        }
+
+        [UnityTest]
+        public IEnumerator ObserverFailureCannotSkipImageWaitOrRegionRetirement()
+        {
+            yield return null; scope.Publish();
+            scope.Replace(region, 1, () => { }, site);
+            scope.Replace(region, 2, () => { }, site);
+            yield return Until(() => renderer.CapturePending); renderer.CompleteCapture();
+            yield return Until(() => renderer.RenderPending);
+            var wait = renderer.RenderTask;
+            void FailingObserver(UiTransitionFrame frame) => throw new InvalidOperationException("observer witness");
+            scope.Observed += FailingObserver;
+            try { Assert.Throws<AggregateException>(scope.Retire); }
+            finally { scope.Observed -= FailingObserver; }
+            Assert.That(wait.IsCanceled, Is.True);
+            Assert.That(scope.HasRetainedImage, Is.False);
+            Assert.That(renderer.Image.Disposals, Is.EqualTo(1));
+            Assert.That(scope.RegionCount, Is.Zero);
         }
 
         [UnityTest]

@@ -6,8 +6,10 @@ namespace VM233.UIElements
         Shown,
         Entering,
         Exiting,
-        ReplacingOutgoing,
-        ReplacingIncoming,
+        CapturingReplacement,
+        PublishingReplacement,
+        WaitingReplacementLayout,
+        Replacing,
         Retired
     }
 }

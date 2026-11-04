@@ -2,6 +2,22 @@
 
 All notable changes to this package are documented in this file.
 
+## [0.5.0] - 2026-11-05
+
+### Changed
+
+- Replace sequential half-duration content fades with one root-owned retained
+  source image, coherent publication, actual target frame readiness and one full
+  crossfade. Natural game frames rejected the former method's blank interval.
+- UiTransitionScope now requires an IUiTransitionRenderer. Replace hosts must be
+  descendants of the document host. Integrations must implement actual capture,
+  rendered-frame readiness and synchronous cancellation/join at native root release.
+- Expose capture/publication/layout/replacement phases, source-pixel/frame evidence
+  and actual retained-image ownership. Remove the former outgoing/incoming phases.
+- Preserve reentrant publication requests and complete all resource/region
+  retirement before reporting observer failures. Protocol fixtures use an explicit
+  controlled renderer; game pixel acceptance remains separate.
+
 ## [0.4.2] - 2026-11-05
 
 ### Fixed
