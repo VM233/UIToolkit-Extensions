@@ -28,6 +28,9 @@ namespace VM233.UIElements
         internal bool IsPublishing => phase == UiTransitionPhase.PublishingReplacement;
         internal bool Retired => phase == UiTransitionPhase.Retired;
         internal bool HasImage => image != null;
+        internal UiTransitionPhase? PendingFrameWait => capture != null && !capture.IsCompleted
+            ? UiTransitionPhase.CapturingReplacement : rendered != null && !rendered.IsCompleted
+                ? UiTransitionPhase.WaitingReplacementLayout : null;
 
         internal UiContentTransition(VisualElement root, IReadOnlyDictionary<VisualElement, UiVisibilityTransition> regions,
             IUiTransitionRenderer renderer, Func<float> seconds, Func<double> clock)

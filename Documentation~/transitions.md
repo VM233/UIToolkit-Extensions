@@ -60,7 +60,9 @@ The root owner calls Retire at native root release. Actual child detach also
 retires the exact child's work and drops pending callbacks. Observe/Observed
 publish source coordinates, actual element, frame, clock, phase, target weight,
 source-pixel retention and capture frame. HasRetainedImage exposes the actual
-owned image. Registration and intermediate values alone are not pixel acceptance.
+owned image. PendingFrameWait identifies the exact incomplete renderer Task,
+separately from pending intent, for native cancellation tests. Registration and
+intermediate values alone are not pixel acceptance.
 
 Static bounds:4096 regions per scope, one commit/animation schedule per region,
 one content schedule and one retained image per batch. Source selection performs

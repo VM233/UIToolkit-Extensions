@@ -15,6 +15,7 @@ namespace VM233.UIElements
         public bool Presented { get; private set; }
         public int RegionCount => regions.Count;
         public bool HasRetainedImage => content.HasImage;
+        public UiTransitionPhase? PendingFrameWait => content.PendingFrameWait;
         public event Action<UiTransitionFrame> Observed;
 
         public UiTransitionScope(VisualElement root, Func<float> seconds, Func<float> distance, Func<double> clock,

@@ -108,12 +108,14 @@ namespace VM233.UIElements.Editor.Tests
             Assert.That(content, Is.EqualTo("first"));
             yield return Until(() => renderer.CapturePending);
             Assert.That(content, Is.EqualTo("first"));
+            Assert.That(scope.PendingFrameWait, Is.EqualTo(UiTransitionPhase.CapturingReplacement));
             renderer.CompleteCapture();
             yield return Until(() => renderer.RenderPending);
             Assert.That(content, Is.EqualTo("latest"));
             Assert.That(renderer.Image.Opacity, Is.EqualTo(1));
             Assert.That(scope.HasRetainedImage, Is.True);
             Assert.That(scope.Observe()[0].Phase, Is.EqualTo(UiTransitionPhase.WaitingReplacementLayout));
+            Assert.That(scope.PendingFrameWait, Is.EqualTo(UiTransitionPhase.WaitingReplacementLayout));
             bool compositeMidframe = false;
             scope.Observed += frame =>
             {
@@ -187,6 +189,7 @@ namespace VM233.UIElements.Editor.Tests
             var wait = renderer.RenderTask;
             scope.Retire();
             Assert.That(wait.IsCanceled, Is.True);
+            Assert.That(scope.PendingFrameWait, Is.Null);
             Assert.That(scope.HasRetainedImage, Is.False);
             Assert.That(renderer.Image.Disposals, Is.EqualTo(1));
             Assert.That(scope.RegionCount, Is.Zero);

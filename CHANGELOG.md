@@ -2,6 +2,12 @@
 
 All notable changes to this package are documented in this file.
 
+## [0.5.2] - 2026-11-05
+
+- Expose the exact incomplete source-capture or target-render Task as a computed
+  PendingFrameWait phase for native cancellation qualification. This does not
+  change timing, publication, animation or retirement behavior.
+
 ## [0.5.1] - 2026-11-05
 
 - Use the supported TrySetCanceled(token) API in controlled Editor fixtures,
