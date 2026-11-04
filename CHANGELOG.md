@@ -2,6 +2,15 @@
 
 All notable changes to this package are documented in this file.
 
+## [0.4.0] - 2026-11-05
+
+### Added
+
+- Root-owned retained UI visibility and content transitions with source sites,
+  coalescing, reversal, input settlement, authored style restoration and native
+  detach retirement. See Documentation~/transitions.md for the integration contract.
+- Native regressions for visibility, content replacement, reentry and reuse.
+
 ## [0.3.1] - 2026-10-31
 
 ### Fixed

@@ -20,11 +20,11 @@ Pin production projects to a full commit SHA.
 
 Unity 6000.0 or newer. Project-specific USS, sprites, localization and page layout remain in the consumer.
 
-See [control API and styling](Documentation~/Controls.md) and [changes](CHANGELOG.md).
+See [control API and styling](Documentation~/Controls.md),
+[retained UI transitions](Documentation~/transitions.md) and [changes](CHANGELOG.md).
 
 ## Package structure
 
-- `Runtime/VisualElements`: reusable controls and VisualElement extensions.
+- `Runtime`: retained presentation ownership and its host contract.
+- `Runtime/VisualElements`: reusable controls.
 - `Tests/Editor`: package regression tests.
-
-USS, sprites, colors, localization, and page layout remain in each consuming project for now.
