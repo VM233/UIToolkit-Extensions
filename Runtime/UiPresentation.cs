@@ -7,7 +7,7 @@ namespace VM233.UIElements
 {
     public static class UiPresentation
     {
-        public static DisplayStyle Display(VisualElement element, DisplayStyle display,
+        public static DisplayStyle Display(VisualElement element, DisplayStyle display, string targetExpression,
             [CallerFilePath] string file = "", [CallerMemberName] string member = "", [CallerLineNumber] int line = 0)
         {
             if (!Application.isPlaying || element.panel == null)
@@ -15,7 +15,7 @@ namespace VM233.UIElements
                 element.style.display = display;
                 return display;
             }
-            Scope(element).Display(element, display, new UiTransitionSite(file, member, line));
+            Scope(element).Display(element, display, new UiTransitionSite(file, member, line, targetExpression));
             return display;
         }
 
@@ -25,11 +25,11 @@ namespace VM233.UIElements
             return Scope(element).RequestedDisplay(element);
         }
 
-        public static void Replace(VisualElement element, object identity, Action publish,
+        public static void Replace(VisualElement element, object identity, Action publish, string targetExpression,
             [CallerFilePath] string file = "", [CallerMemberName] string member = "", [CallerLineNumber] int line = 0)
         {
             if (!Application.isPlaying || element.panel == null) { publish(); return; }
-            Scope(element).Replace(element, identity, publish, new UiTransitionSite(file, member, line));
+            Scope(element).Replace(element, identity, publish, new UiTransitionSite(file, member, line, targetExpression));
         }
 
         public static UiTransitionScope Scope(VisualElement element)

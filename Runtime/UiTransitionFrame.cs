@@ -10,17 +10,18 @@ namespace VM233.UIElements
         public int Frame { get; }
         public double Seconds { get; }
         public bool RequestedVisible { get; }
-        public bool Moving { get; }
+        public UiTransitionPhase Phase { get; }
+        public bool Moving => Phase is UiTransitionPhase.Entering or UiTransitionPhase.Exiting or UiTransitionPhase.ReplacingOutgoing or UiTransitionPhase.ReplacingIncoming;
         public float Opacity { get; }
         public int IntermediateFrames { get; }
-        public bool Retired { get; }
+        public bool Retired => Phase == UiTransitionPhase.Retired;
 
         internal UiTransitionFrame(UiTransitionSite site, VisualElement element, bool requestedVisible,
-            bool moving, float opacity, int intermediateFrames, bool retired)
+            UiTransitionPhase phase, float opacity, int intermediateFrames, double seconds)
         {
             Site = site; Element = element; Frame = Time.frameCount;
-            Seconds = Time.unscaledTimeAsDouble; RequestedVisible = requestedVisible;
-            Moving = moving; Opacity = opacity; IntermediateFrames = intermediateFrames; Retired = retired;
+            Seconds = seconds; RequestedVisible = requestedVisible;
+            Phase = phase; Opacity = opacity; IntermediateFrames = intermediateFrames;
         }
     }
 }

@@ -2,6 +2,19 @@
 
 All notable changes to this package are documented in this file.
 
+## [0.4.1] - 2026-11-05
+
+### Fixed
+
+- Sample and finish each immutable animation segment before reconciling newer
+  requests. Content reentry and publication at a completion boundary cannot
+  overwrite an incoming phase with a stale target.
+- Source sites include the exact target expression to distinguish multiple
+  state producers on one line. Native motion owners can declare their phase
+  and retirement member for source inventory; runtime evidence remains required.
+- Natural phase observations replace external short-wait assumptions in native
+  regression stimuli. Original terminal-state checks remain, with a new boundary case.
+
 ## [0.4.0] - 2026-11-05
 
 ### Added

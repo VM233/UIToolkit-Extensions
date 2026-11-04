@@ -14,7 +14,7 @@ namespace VM233.UIElements.Editor.Tests
         private EditorWindow window;
         private VisualElement region;
         private UiTransitionScope scope;
-        private readonly UiTransitionSite site = new("Fixture.cs", "Stimulus", 1);
+        private readonly UiTransitionSite site = new("Fixture.cs", "Stimulus", 1, "region");
         private readonly List<UiTransitionFrame> frames = new();
         private EditorWindow previousFocus;
 
@@ -76,12 +76,16 @@ namespace VM233.UIElements.Editor.Tests
         public IEnumerator ReversalStartsAtTheActuallyPresentedOpacity()
         {
             yield return null; scope.Publish();
-            scope.Display(region, DisplayStyle.None, site); yield return Wait(.04);
-            float before = scope.Observe()[0].Opacity;
-            scope.Display(region, DisplayStyle.Flex, site); yield return null;
-            Assert.That(scope.Observe()[0].Opacity, Is.LessThan(1));
-            Assert.That(before, Is.InRange(.001f, .999f));
-            yield return Wait(.22);
+            bool reversed = false, continuous = false;
+            scope.Observed += frame =>
+            {
+                if (!reversed && frame.Phase == UiTransitionPhase.Exiting && frame.Opacity > .05f && frame.Opacity < .95f)
+                { reversed = true; scope.Display(region, DisplayStyle.Flex, site); }
+                else if (reversed && frame.Phase == UiTransitionPhase.Entering && frame.Opacity < 1) continuous = true;
+            };
+            scope.Display(region, DisplayStyle.None, site);
+            yield return Until(() => reversed && !scope.Observe()[0].Moving);
+            Assert.That(continuous, Is.True, History());
             Assert.That(region.style.display.value, Is.EqualTo(DisplayStyle.Flex));
             Assert.That(region.resolvedStyle.opacity, Is.EqualTo(1).Within(.001));
         }
@@ -95,9 +99,14 @@ namespace VM233.UIElements.Editor.Tests
             scope.Replace(region, 2, () => content = "superseded", site);
             scope.Replace(region, 3, () => content = "latest", site);
             Assert.That(content, Is.EqualTo("first"));
-            yield return Wait(.04);
-            Assert.That(content, Is.EqualTo("first"));
-            yield return Wait(.24);
+            bool oldMidframe = false;
+            scope.Observed += frame =>
+            {
+                if (frame.Phase == UiTransitionPhase.ReplacingOutgoing && frame.Opacity > 0 && frame.Opacity < 1)
+                { Assert.That(content, Is.EqualTo("first"), History()); oldMidframe = true; }
+            };
+            yield return Until(() => content == "latest" && !scope.Observe()[0].Moving);
+            Assert.That(oldMidframe, Is.True, History());
             Assert.That(content, Is.EqualTo("latest"));
             Assert.That(scope.Observe()[0].Moving, Is.False);
             Assert.That(region.resolvedStyle.opacity, Is.EqualTo(1).Within(.001));
@@ -109,11 +118,34 @@ namespace VM233.UIElements.Editor.Tests
             yield return null; scope.Publish();
             string content = "first";
             scope.Replace(region, 1, () => content = "first", site);
-            scope.Replace(region, 2, () => content = "wrong", site); yield return Wait(.04);
-            scope.Replace(region, 1, () => content = "first", site); yield return Wait(.24);
+            bool reentered = false;
+            scope.Observed += frame =>
+            {
+                if (!reentered && frame.Phase == UiTransitionPhase.ReplacingOutgoing && frame.Opacity > 0 && frame.Opacity < 1)
+                { reentered = true; scope.Replace(region, 1, () => content = "first", site); }
+            };
+            scope.Replace(region, 2, () => content = "wrong", site);
+            yield return Until(() => reentered && !scope.Observe()[0].Moving);
             Assert.That(content, Is.EqualTo("first"));
             Assert.That(scope.Observe()[0].Moving, Is.False);
-            Assert.That(region.resolvedStyle.opacity, Is.EqualTo(1).Within(.001));
+            Assert.That(region.resolvedStyle.opacity, Is.EqualTo(1).Within(.001), History());
+        }
+
+        [UnityTest]
+        public IEnumerator LatestRequestAtPublicationBoundaryCannotOverwriteIncomingSegment()
+        {
+            yield return null; scope.Publish();
+            string content = "first"; bool boundary = false;
+            scope.Replace(region, 1, () => content = "first", site);
+            scope.Observed += frame =>
+            {
+                if (!boundary && frame.Phase == UiTransitionPhase.ReplacingIncoming)
+                { boundary = true; scope.Replace(region, 3, () => content = "boundary", site); }
+            };
+            scope.Replace(region, 2, () => content = "second", site);
+            yield return Until(() => boundary && content == "boundary" && !scope.Observe()[0].Moving);
+            Assert.That(content, Is.EqualTo("boundary"), History());
+            Assert.That(region.resolvedStyle.opacity, Is.EqualTo(1).Within(.001), History());
         }
 
         [UnityTest]
@@ -149,5 +181,16 @@ namespace VM233.UIElements.Editor.Tests
             double deadline = EditorApplication.timeSinceStartup + seconds;
             while (EditorApplication.timeSinceStartup < deadline) yield return null;
         }
+
+        private IEnumerator Until(Func<bool> completed)
+        {
+            double deadline = EditorApplication.timeSinceStartup + 2;
+            while (!completed() && EditorApplication.timeSinceStartup < deadline) yield return null;
+            Assert.That(completed(), Is.True, History());
+            yield return null;
+        }
+
+        private string History() => string.Join("\n", frames.ConvertAll(frame =>
+            $"{frame.Seconds:R} {frame.Phase} visible={frame.RequestedVisible} opacity={frame.Opacity:R}"));
     }
 }
