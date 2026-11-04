@@ -2,6 +2,16 @@
 
 All notable changes to this package are documented in this file.
 
+## [0.4.2] - 2026-11-05
+
+### Fixed
+
+- Qualify native visibility/reversal stimuli by the actual moving phase and
+  wait for the terminal phase before checking exact authored style restoration.
+  The previous natural run completed six of eight cases; one fixed-wait assertion
+  sampled a still-moving frame and one arbitrary opacity window never sent its
+  reversal stimulus. Production duration, terminal values and input checks stay unchanged.
+
 ## [0.4.1] - 2026-11-05
 
 ### Fixed

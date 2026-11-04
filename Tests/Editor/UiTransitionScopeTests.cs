@@ -47,15 +47,20 @@ namespace VM233.UIElements.Editor.Tests
             int clicks = 0; button.clicked += () => clicks++;
             scope.Display(region, DisplayStyle.None, site);
             Assert.That(scope.RequestedDisplay(region), Is.EqualTo(DisplayStyle.None));
-            yield return Wait(.04);
-            Assert.That(region.style.display.value, Is.EqualTo(DisplayStyle.Flex));
-            Assert.That(region.resolvedStyle.opacity, Is.InRange(.001f, .999f));
-            using (var click = ClickEvent.GetPooled()) { click.target = button; button.SendEvent(click); }
-            Assert.That(clicks, Is.Zero);
-            yield return Wait(.2);
+            bool retained = false;
+            scope.Observed += frame =>
+            {
+                if (frame.Phase != UiTransitionPhase.Exiting || frame.Opacity <= 0 || frame.Opacity >= 1) return;
+                Assert.That(region.style.display.value, Is.EqualTo(DisplayStyle.Flex));
+                using (var click = ClickEvent.GetPooled()) { click.target = button; button.SendEvent(click); }
+                Assert.That(clicks, Is.Zero); retained = true;
+            };
+            yield return Until(() => scope.Observe()[0].Phase == UiTransitionPhase.Hidden);
+            Assert.That(retained, Is.True, History());
             Assert.That(region.style.display.value, Is.EqualTo(DisplayStyle.None));
             Assert.That(scope.Observe()[0].Moving, Is.False);
-            scope.Display(region, DisplayStyle.Flex, site); yield return Wait(.22);
+            scope.Display(region, DisplayStyle.Flex, site);
+            yield return Until(() => scope.Observe()[0].Phase == UiTransitionPhase.Shown);
             Assert.That(region.resolvedStyle.opacity, Is.EqualTo(1).Within(.001));
             Assert.That(scope.Observe()[0].RequestedVisible, Is.True);
         }
@@ -79,7 +84,7 @@ namespace VM233.UIElements.Editor.Tests
             bool reversed = false, continuous = false;
             scope.Observed += frame =>
             {
-                if (!reversed && frame.Phase == UiTransitionPhase.Exiting && frame.Opacity > .05f && frame.Opacity < .95f)
+                if (!reversed && frame.Phase == UiTransitionPhase.Exiting && frame.Opacity > 0 && frame.Opacity < 1)
                 { reversed = true; scope.Display(region, DisplayStyle.Flex, site); }
                 else if (reversed && frame.Phase == UiTransitionPhase.Entering && frame.Opacity < 1) continuous = true;
             };
@@ -167,8 +172,10 @@ namespace VM233.UIElements.Editor.Tests
         {
             region.style.opacity = .7f; region.style.translate = new Translate(5, 7, 0);
             yield return null; scope.Publish();
-            scope.Display(region, DisplayStyle.None, site); yield return Wait(.22);
-            scope.Display(region, DisplayStyle.Flex, site); yield return Wait(.22);
+            scope.Display(region, DisplayStyle.None, site);
+            yield return Until(() => scope.Observe()[0].Phase == UiTransitionPhase.Hidden);
+            scope.Display(region, DisplayStyle.Flex, site);
+            yield return Until(() => scope.Observe()[0].Phase == UiTransitionPhase.Shown);
             Assert.That(region.style.opacity.value, Is.EqualTo(.7f));
             Assert.That(region.style.translate.value.x.value, Is.EqualTo(5));
             Assert.That(region.style.translate.value.y.value, Is.EqualTo(7));
