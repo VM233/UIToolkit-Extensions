@@ -179,6 +179,48 @@ namespace VM233.UIElements.Editor.Tests
         }
 
         [UnityTest]
+        public IEnumerator SourceWaitAdmissionCanRetireItsExactIncompleteTask()
+        {
+            yield return null; scope.Publish();
+            bool observed = false;
+            scope.FrameWaitStarted += (phase, wait) =>
+            {
+                if (phase != UiTransitionPhase.CapturingReplacement) return;
+                Assert.That(wait.IsCompleted, Is.False);
+                Assert.That(wait, Is.SameAs(renderer.CaptureTask));
+                scope.Retire();
+                Assert.That(wait.IsCanceled, Is.True); observed = true;
+            };
+            scope.Replace(region, 1, () => { }, site);
+            scope.Replace(region, 2, () => Assert.Fail("Retired content published late."), site);
+            yield return Until(() => observed);
+            Assert.That(scope.RegionCount, Is.Zero);
+            Assert.That(scope.HasRetainedImage, Is.False);
+        }
+
+        [UnityTest]
+        public IEnumerator TargetWaitAdmissionCanRetireItsExactIncompleteTaskAndImage()
+        {
+            yield return null; scope.Publish();
+            bool observed = false;
+            scope.FrameWaitStarted += (phase, wait) =>
+            {
+                if (phase != UiTransitionPhase.WaitingReplacementLayout) return;
+                Assert.That(wait.IsCompleted, Is.False);
+                Assert.That(wait, Is.SameAs(renderer.RenderTask));
+                scope.Retire();
+                Assert.That(wait.IsCanceled, Is.True); observed = true;
+            };
+            scope.Replace(region, 1, () => { }, site);
+            scope.Replace(region, 2, () => { }, site);
+            yield return Until(() => renderer.CapturePending); renderer.CompleteCapture();
+            yield return Until(() => observed);
+            Assert.That(renderer.Image.Disposals, Is.EqualTo(1));
+            Assert.That(scope.RegionCount, Is.Zero);
+            Assert.That(scope.HasRetainedImage, Is.False);
+        }
+
+        [UnityTest]
         public IEnumerator RootRetirementJoinsTheOwnedFrameWaitAndReleasesTheRetainedImage()
         {
             yield return null; scope.Publish();

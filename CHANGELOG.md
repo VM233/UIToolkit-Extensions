@@ -2,6 +2,14 @@
 
 All notable changes to this package are documented in this file.
 
+## [0.5.3] - 2026-11-05
+
+- Publish FrameWaitStarted immediately after assigning the actual renderer Task.
+  Observers can qualify native cancellation before the frame-end wait completes,
+  rather than attempting to sample that short lifetime at window-capture cadence.
+- Preserve synchronous source/target wait-admission retirement in two controls.
+  No presentation clock, duration, capture cadence or rendering path changes.
+
 ## [0.5.2] - 2026-11-05
 
 - Expose the exact incomplete source-capture or target-render Task as a computed

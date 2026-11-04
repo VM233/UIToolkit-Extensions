@@ -63,6 +63,10 @@ source-pixel retention and capture frame. HasRetainedImage exposes the actual
 owned image. PendingFrameWait identifies the exact incomplete renderer Task,
 separately from pending intent, for native cancellation tests. Registration and
 intermediate values alone are not pixel acceptance.
+FrameWaitStarted publishes the exact Task immediately after owner assignment,
+with its source-capture or target-render phase. An observer can verify that Task
+is incomplete, cause actual root retirement, and check that same Task's canceled
+completion. Sampling a phase later at recorder cadence cannot prove this path.
 
 Static bounds:4096 regions per scope, one commit/animation schedule per region,
 one content schedule and one retained image per batch. Source selection performs

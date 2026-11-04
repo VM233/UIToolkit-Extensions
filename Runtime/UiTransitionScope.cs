@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using UnityEngine.UIElements;
 
 namespace VM233.UIElements
@@ -17,19 +18,20 @@ namespace VM233.UIElements
         public bool HasRetainedImage => content.HasImage;
         public UiTransitionPhase? PendingFrameWait => content.PendingFrameWait;
         public event Action<UiTransitionFrame> Observed;
+        public event Action<UiTransitionPhase, Task> FrameWaitStarted;
 
         public UiTransitionScope(VisualElement root, Func<float> seconds, Func<float> distance, Func<double> clock,
             IUiTransitionRenderer renderer)
         {
             this.root = root; this.seconds = seconds; this.distance = distance; this.clock = clock;
             this.renderer = renderer;
-            content = new UiContentTransition(root, regions, renderer, seconds, clock);
+            content = CreateContent();
             root.RegisterCallback<DetachFromPanelEvent>(Detached);
         }
 
         public void Publish()
         {
-            if (content.Retired) content = new UiContentTransition(root, regions, renderer, seconds, clock);
+            if (content.Retired) content = CreateContent();
             Presented = true;
         }
 
@@ -82,6 +84,9 @@ namespace VM233.UIElements
         }
 
         private void PublishFrame(UiTransitionFrame frame) => Observed?.Invoke(frame);
+
+        private UiContentTransition CreateContent() => new(root, regions, renderer, seconds, clock,
+            (phase, task) => FrameWaitStarted?.Invoke(phase, task));
 
         private void Release(VisualElement element)
         {

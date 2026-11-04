@@ -15,6 +15,7 @@ namespace VM233.UIElements
         private readonly IUiTransitionRenderer renderer;
         private readonly Func<float> seconds;
         private readonly Func<double> clock;
+        private readonly Action<UiTransitionPhase, Task> waitStarted;
         private readonly IVisualElementScheduledItem schedule;
         private readonly HashSet<UiVisibilityTransition> pending = new();
         private UiVisibilityTransition[] active = Array.Empty<UiVisibilityTransition>();
@@ -33,9 +34,10 @@ namespace VM233.UIElements
                 ? UiTransitionPhase.WaitingReplacementLayout : null;
 
         internal UiContentTransition(VisualElement root, IReadOnlyDictionary<VisualElement, UiVisibilityTransition> regions,
-            IUiTransitionRenderer renderer, Func<float> seconds, Func<double> clock)
+            IUiTransitionRenderer renderer, Func<float> seconds, Func<double> clock, Action<UiTransitionPhase, Task> waitStarted)
         {
             this.root = root; this.regions = regions; this.renderer = renderer; this.seconds = seconds; this.clock = clock;
+            this.waitStarted = waitStarted;
             schedule = root.schedule.Execute(Tick).Every(16); schedule.Pause();
         }
 
@@ -63,6 +65,7 @@ namespace VM233.UIElements
                     if (!float.IsFinite(duration) || duration <= 0) throw new InvalidOperationException("Content presentation requires a finite positive duration.");
                     lifetime = new CancellationTokenSource(); phase = UiTransitionPhase.CapturingReplacement;
                     capture = renderer.CaptureAsync(root, CaptureBounds, lifetime.Token);
+                    waitStarted(phase, capture);
                 }
                 if (phase == UiTransitionPhase.CapturingReplacement && capture.IsCompleted)
                 {
@@ -80,6 +83,7 @@ namespace VM233.UIElements
                     }
                     phase = UiTransitionPhase.WaitingReplacementLayout;
                     Publish(0); rendered = renderer.WaitForRenderedFrameAsync(lifetime.Token);
+                    waitStarted(phase, rendered);
                 }
                 if (phase == UiTransitionPhase.WaitingReplacementLayout && rendered.IsCompleted)
                 {
