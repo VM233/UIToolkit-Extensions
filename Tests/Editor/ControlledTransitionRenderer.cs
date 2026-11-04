@@ -24,7 +24,10 @@ namespace VM233.UIElements.Editor.Tests
             captureBounds = bounds;
             capture = new TaskCompletionSource<IUiTransitionImage>();
             var owned = capture;
-            captureCancellation = cancellationToken.Register(() => owned.SetCanceled(cancellationToken));
+            captureCancellation = cancellationToken.Register(() =>
+            {
+                if (!owned.TrySetCanceled(cancellationToken)) throw new InvalidOperationException("The controlled capture already completed.");
+            });
             return capture.Task;
         }
 
@@ -41,7 +44,10 @@ namespace VM233.UIElements.Editor.Tests
         {
             render = new TaskCompletionSource<bool>();
             var owned = render;
-            renderCancellation = cancellationToken.Register(() => owned.SetCanceled(cancellationToken));
+            renderCancellation = cancellationToken.Register(() =>
+            {
+                if (!owned.TrySetCanceled(cancellationToken)) throw new InvalidOperationException("The controlled frame wait already completed.");
+            });
             return render.Task;
         }
 

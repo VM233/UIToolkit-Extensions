@@ -2,6 +2,11 @@
 
 All notable changes to this package are documented in this file.
 
+## [0.5.1] - 2026-11-05
+
+- Use the supported TrySetCanceled(token) API in controlled Editor fixtures,
+  retaining exact cancellation identity and rejecting duplicate completion.
+
 ## [0.5.0] - 2026-11-05
 
 ### Changed
