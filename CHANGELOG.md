@@ -2,6 +2,14 @@
 
 All notable changes to this package are documented in this file.
 
+## [0.5.10] - 2026-11-05
+
+- Add synchronous Initialize for attached-root binding before publication and
+  after real retirement. It uses the unchanged unpublished mutation condition
+  and rejects an already presented document before running the callback.
+- Cover initialization, published rejection, retired rebind and foreign-root
+  rejection in the native scope suite.
+
 ## [0.5.9] - 2026-11-05
 
 - Compare native authored padding with its initial resolved values in layout

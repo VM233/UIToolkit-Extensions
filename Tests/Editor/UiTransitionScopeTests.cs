@@ -142,6 +142,24 @@ namespace VM233.UIElements.Editor.Tests
         }
 
         [UnityTest]
+        public IEnumerator InitializationRequiresTheActualUnpublishedDocument()
+        {
+            yield return null;
+            int calls = 0;
+            scope.Initialize(region, () => { calls++; region.Add(new Label("initial")); });
+            Assert.That(calls, Is.EqualTo(1));
+            scope.Publish();
+            Assert.Throws<InvalidOperationException>(() => scope.Initialize(region, () => calls++));
+            Assert.That(calls, Is.EqualTo(1));
+            scope.Retire();
+            scope.Initialize(region, () => { calls++; region.Clear(); region.Add(new Label("rebound")); });
+            Assert.That(calls, Is.EqualTo(2));
+            Assert.That(region.Q<Label>().text, Is.EqualTo("rebound"));
+            Assert.Throws<ArgumentException>(() => scope.Initialize(new VisualElement(), () => calls++));
+            Assert.That(calls, Is.EqualTo(2));
+        }
+
+        [UnityTest]
         public IEnumerator SynchronousHideShowDoesNotRestartOrPublishHiddenState()
         {
             yield return null; scope.Publish();

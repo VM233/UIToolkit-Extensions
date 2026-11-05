@@ -71,6 +71,12 @@ namespace VM233.UIElements
             Region(element).Request(display, site, Presented && AncestorsPresented(element));
         }
 
+        public void Initialize(VisualElement element, Action initialize)
+        {
+            RequireUnpublishedMutation(element);
+            initialize();
+        }
+
         public void ClearChildren(VisualElement element)
         {
             RequireUnpublishedMutation(element);

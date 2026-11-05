@@ -28,6 +28,10 @@ pending. Visible rebuilding uses Replace. UiTransitionProtocol exposes immutable
 Visibility and Content arcs from the runtime phase authority; content advances
 through that ordered protocol and visibility begins validate its actual arcs.
 Initialization before presentation is distinct from those rendered transitions.
+Initialize runs one synchronous binding callback under the same unpublished
+mutation check. Use it around attached-root binding before Publish, or actual
+retired-root rebind. It rejects an already presented scope before invoking the
+callback and never grants later/deferred callbacks an initialization context.
 
 ## Coherent content publication
 
