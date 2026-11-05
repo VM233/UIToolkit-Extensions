@@ -2,6 +2,11 @@
 
 All notable changes to this package are documented in this file.
 
+## [0.5.8] - 2026-11-05
+
+- Correct the authored-layout UXML fixture's malformed GUID so Unity imports the
+  actual tree before native checks. The visibility implementation is unchanged.
+
 ## [0.5.7] - 2026-11-05
 
 - Preserve authored geometry throughout visibility exit, reversal and scope
