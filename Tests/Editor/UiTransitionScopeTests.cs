@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
@@ -213,6 +214,89 @@ namespace VM233.UIElements.Editor.Tests
             yield return Until(() => observed);
             Assert.That(scope.RegionCount, Is.Zero);
             Assert.That(scope.HasRetainedImage, Is.False);
+        }
+
+        [UnityTest]
+        public IEnumerator UncapturedSiblingWaitsForItsOwnPublicationImage()
+        {
+            var sibling = new VisualElement(); sibling.style.width = 160; sibling.style.height = 80;
+            window.rootVisualElement.Add(sibling);
+            yield return null; scope.Publish();
+            string first = "old", second = "old";
+            scope.Replace(region, 1, () => { }, site);
+            scope.Replace(sibling, 1, () => { }, site);
+            scope.Replace(region, 2, () =>
+            {
+                first = "new";
+                scope.Replace(sibling, 2, () => second = "new", site);
+            }, site);
+            yield return Until(() => renderer.CapturePending); renderer.CompleteCapture();
+            yield return Until(() => renderer.RenderPending);
+            Assert.That(first, Is.EqualTo("new"));
+            Assert.That(second, Is.EqualTo("old"), "A sibling outside this captured group published immediately.");
+            renderer.CompleteRender();
+            yield return Until(() => renderer.CapturePending);
+            Assert.That(second, Is.EqualTo("old")); renderer.CompleteCapture();
+            yield return Until(() => renderer.RenderPending); renderer.CompleteRender();
+            yield return Until(() => !scope.Observe().Any(frame => frame.Moving));
+            Assert.That(second, Is.EqualTo("new"));
+        }
+
+        [UnityTest]
+        public IEnumerator PublicationObserverRetirementCannotRunRetiredContentOrRenderWait()
+        {
+            yield return null; scope.Publish();
+            scope.Replace(region, 1, () => { }, site);
+            bool retired = false, published = false;
+            scope.Observed += frame =>
+            {
+                if (frame.Phase != UiTransitionPhase.PublishingReplacement) return;
+                scope.Retire(); retired = true;
+            };
+            scope.Replace(region, 2, () => published = true, site);
+            yield return Until(() => renderer.CapturePending); renderer.CompleteCapture();
+            yield return Until(() => retired);
+            Assert.That(published, Is.False);
+            Assert.That(renderer.RenderPending, Is.False);
+            Assert.That(scope.RegionCount, Is.Zero);
+            Assert.That(scope.HasRetainedImage, Is.False);
+            Assert.That(renderer.Image.Disposals, Is.EqualTo(1));
+        }
+
+        [UnityTest]
+        public IEnumerator PublicationMayRemoveItsActualRegionWithoutStartingALateRenderWait()
+        {
+            yield return null; scope.Publish();
+            scope.Replace(region, 1, () => { }, site);
+            scope.Replace(region, 2, region.RemoveFromHierarchy, site);
+            yield return Until(() => renderer.CapturePending); renderer.CompleteCapture();
+            yield return Until(() => scope.RegionCount == 0);
+            Assert.That(scope.Presented, Is.True);
+            Assert.That(renderer.RenderPending, Is.False);
+            Assert.That(scope.PendingFrameWait, Is.Null);
+            Assert.That(scope.HasRetainedImage, Is.False);
+            Assert.That(renderer.Image.Disposals, Is.EqualTo(1));
+        }
+
+        [UnityTest]
+        public IEnumerator CompletionObserverRetiresAlreadyConsumedBatchExactlyOnce()
+        {
+            yield return null; scope.Publish();
+            scope.Replace(region, 1, () => { }, site);
+            bool retired = false;
+            scope.Observed += frame =>
+            {
+                if (retired || frame.Phase != UiTransitionPhase.Shown || renderer.Image == null) return;
+                retired = true; scope.Retire();
+            };
+            scope.Replace(region, 2, () => { }, site);
+            yield return Until(() => renderer.CapturePending); renderer.CompleteCapture();
+            yield return Until(() => renderer.RenderPending); renderer.CompleteRender();
+            yield return Until(() => retired);
+            Assert.That(scope.RegionCount, Is.Zero);
+            Assert.That(scope.HasRetainedImage, Is.False);
+            Assert.That(scope.PendingFrameWait, Is.Null);
+            Assert.That(renderer.Image.Disposals, Is.EqualTo(1));
         }
 
         [UnityTest]

@@ -74,13 +74,13 @@ namespace VM233.UIElements
         {
             if (ReferenceEquals(element, root)) throw new ArgumentException("Local replacement must be inside its retained document host.");
             Region(element).Replace(identity, publish, site,
-                Presented && !content.IsPublishing && AncestorsPresented(element) && RequestedDisplay(element) != DisplayStyle.None &&
+                Presented && AncestorsPresented(element) && RequestedDisplay(element) != DisplayStyle.None &&
                 element.resolvedStyle.display != DisplayStyle.None && element.resolvedStyle.visibility == Visibility.Visible && element.resolvedStyle.opacity > 0);
         }
 
         private bool AncestorsPresented(VisualElement element)
         {
-            if (content.IsPublishing) return false;
+            if (content.Publishes(element)) return false;
             for (var ancestor = element.parent; ancestor != null; ancestor = ancestor.parent)
             {
                 if (regions.TryGetValue(ancestor, out var region) && region.Requested == DisplayStyle.None) return false;
@@ -108,17 +108,17 @@ namespace VM233.UIElements
 
         private void Release(VisualElement element)
         {
-            var region = regions[element];
-            regions.Remove(element);
+            if (!regions.Remove(element, out var region)) return;
             region.Dispose();
         }
 
         public void Retire()
         {
             Presented = false;
-            var retirement = new UiTransitionRetirement(); retirement.Attempt(content.Retire);
-            foreach (var region in regions.Values) retirement.Attempt(region.Dispose);
+            var owned = new List<UiVisibilityTransition>(regions.Values);
             regions.Clear();
+            var retirement = new UiTransitionRetirement(); retirement.Attempt(content.Retire);
+            foreach (var region in owned) retirement.Attempt(region.Dispose);
             retirement.ThrowIfFailed();
         }
 

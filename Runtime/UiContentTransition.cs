@@ -18,6 +18,7 @@ namespace VM233.UIElements
         private readonly Action<UiTransitionPhase, Task> waitStarted;
         private readonly IVisualElementScheduledItem schedule;
         private readonly HashSet<UiVisibilityTransition> pending = new();
+        private readonly HashSet<VisualElement> publicationRoots = new();
         private UiVisibilityTransition[] active = Array.Empty<UiVisibilityTransition>();
         private CancellationTokenSource lifetime;
         private Task<IUiTransitionImage> capture;
@@ -26,7 +27,7 @@ namespace VM233.UIElements
         private UiTransitionSegment segment;
         private float duration;
         private UiTransitionPhase phase = UiTransitionPhase.Shown;
-        internal bool IsPublishing => phase == UiTransitionPhase.PublishingReplacement;
+        private bool IsPublishing => phase == UiTransitionPhase.PublishingReplacement;
         internal bool Retired => phase == UiTransitionPhase.Retired;
         internal bool HasImage => image != null;
         internal UiTransitionPhase? PendingFrameWait => capture != null && !capture.IsCompleted
@@ -39,6 +40,18 @@ namespace VM233.UIElements
             this.root = root; this.regions = regions; this.renderer = renderer; this.seconds = seconds; this.clock = clock;
             this.waitStarted = waitStarted;
             schedule = root.schedule.Execute(Tick).Every(16); schedule.Pause();
+        }
+
+        internal bool Publishes(VisualElement element)
+        {
+            if (!IsPublishing) return false;
+            int depth = 0;
+            for (var current = element; current != null && !ReferenceEquals(current, root); current = current.parent)
+            {
+                if (++depth > 64) throw new InvalidOperationException("Content publication exceeds64 ancestor links.");
+                if (publicationRoots.Contains(current)) return true;
+            }
+            return false;
         }
 
         internal void Request(UiVisibilityTransition region)
@@ -73,16 +86,22 @@ namespace VM233.UIElements
                     if (!image.ContainsSourcePixels) throw new InvalidOperationException("The admitted content image contains no actual source pixels.");
                     active = active.Where(region => region.HasPendingContent).ToArray();
                     if (active.Length == 0) { CompleteBatch(); return; }
+                    publicationRoots.Clear();
+                    foreach (var region in active) publicationRoots.Add(region.Element);
                     phase = UiTransitionProtocol.NextContent(phase);
+                    var operation = lifetime;
                     foreach (var region in active)
                     {
                         pending.Remove(region);
                         var publish = region.TakeContentPublication();
                         region.SetContentPhase(phase, 0, true, image.CapturedFrame);
+                        if (!ReferenceEquals(operation, lifetime)) return;
                         publish();
+                        if (!ReferenceEquals(operation, lifetime)) return;
                     }
                     phase = UiTransitionProtocol.NextContent(phase);
-                    Publish(0); rendered = renderer.WaitForRenderedFrameAsync(lifetime.Token);
+                    if (!Publish(0)) return;
+                    rendered = renderer.WaitForRenderedFrameAsync(lifetime.Token);
                     waitStarted(phase, rendered);
                 }
                 if (phase == UiTransitionPhase.WaitingReplacementLayout && rendered.IsCompleted)
@@ -93,7 +112,8 @@ namespace VM233.UIElements
                 if (phase == UiTransitionPhase.Replacing)
                 {
                     double now = clock(); float progress = segment.Sample(now);
-                    image.SetSourceOpacity(1 - progress); Publish(progress);
+                    image.SetSourceOpacity(1 - progress);
+                    if (!Publish(progress)) return;
                     if (segment.Complete(now)) CompleteBatch();
                 }
             }
@@ -132,46 +152,54 @@ namespace VM233.UIElements
             return bounds;
         }
 
-        private void Publish(float progress)
+        private bool Publish(float progress)
         {
-            foreach (var region in active) region.SetContentPhase(phase, progress, image.ContainsSourcePixels, image.CapturedFrame);
-        }
-
-        private void CompleteBatch()
-        {
-            var release = new UiTransitionRetirement();
-            release.Attempt(image.Dispose); image = null;
-            foreach (var region in active) release.Attempt(region.ClearContentPhase);
-            active = Array.Empty<UiVisibilityTransition>(); capture = null; rendered = null; segment = null;
-            lifetime.Dispose(); lifetime = null; phase = UiTransitionPhase.Shown;
-            release.ThrowIfFailed();
-        }
-
-        private void AbortBatch()
-        {
-            var release = new UiTransitionRetirement();
-            var ownedImage = image; image = null;
-            release.Attempt(lifetime.Cancel);
-            if (capture != null) release.Attempt(() =>
+            var operation = lifetime;
+            foreach (var region in active)
             {
-                RequireRetiredWait(capture);
+                region.SetContentPhase(phase, progress, image.ContainsSourcePixels, image.CapturedFrame);
+                if (!ReferenceEquals(operation, lifetime)) return false;
+            }
+            return true;
+        }
+
+        private void CompleteBatch() => ReleaseBatch(false);
+        private void AbortBatch() => ReleaseBatch(true);
+
+        private void ReleaseBatch(bool cancel)
+        {
+            var ownedImage = image;
+            var ownedCapture = capture;
+            var ownedRendered = rendered;
+            var ownedRegions = active;
+            var ownedLifetime = lifetime;
+            image = null; capture = null; rendered = null; segment = null;
+            active = Array.Empty<UiVisibilityTransition>(); lifetime = null;
+            publicationRoots.Clear(); phase = UiTransitionPhase.Shown;
+            var token = ownedLifetime.Token;
+            var release = new UiTransitionRetirement();
+            if (cancel) release.Attempt(ownedLifetime.Cancel);
+            if (ownedCapture != null) release.Attempt(() =>
+            {
+                RequireRetiredWait(ownedCapture);
                 try
                 {
-                    var captured = capture.GetAwaiter().GetResult();
+                    var captured = ownedCapture.GetAwaiter().GetResult();
                     if (!ReferenceEquals(captured, ownedImage)) captured.Dispose();
                 }
-                catch (OperationCanceledException error) when (error.CancellationToken == lifetime.Token && lifetime.IsCancellationRequested) { }
+                catch (OperationCanceledException error) when (error.CancellationToken == token && token.IsCancellationRequested) { }
             });
-            if (rendered != null) release.Attempt(() =>
+            if (ownedRendered != null) release.Attempt(() =>
             {
-                RequireRetiredWait(rendered);
-                try { rendered.GetAwaiter().GetResult(); }
-                catch (OperationCanceledException error) when (error.CancellationToken == lifetime.Token && lifetime.IsCancellationRequested) { }
+                RequireRetiredWait(ownedRendered);
+                try { ownedRendered.GetAwaiter().GetResult(); }
+                catch (OperationCanceledException error) when (error.CancellationToken == token && token.IsCancellationRequested) { }
             });
             if (ownedImage != null) release.Attempt(ownedImage.Dispose);
-            foreach (var region in active) release.Attempt(region.ClearContentPhase);
-            active = Array.Empty<UiVisibilityTransition>(); capture = null; rendered = null; segment = null;
-            lifetime.Dispose(); lifetime = null; phase = UiTransitionPhase.Shown;
+            release.Attempt(ownedLifetime.Dispose);
+            foreach (var region in ownedRegions)
+                if (regions.TryGetValue(region.Element, out var current) && ReferenceEquals(current, region))
+                    release.Attempt(region.ClearContentPhase);
             release.ThrowIfFailed();
         }
 

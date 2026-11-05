@@ -47,6 +47,13 @@ publication wait for a new capture after the active image retires. Publication
 actions are latched before observers run, so new requests cannot overwrite the
 admitted action.
 
+Only the active publication subtrees suppress nested animation. A sibling outside
+their captured bounds queues a distinct capture; a document-wide publishing flag
+cannot authorize it to jump. Each synchronous observer and publication callback
+returns to the same admitted batch lifetime. If that callback retires the document
+or removes its region, the consumed batch cannot publish another action or start
+a new rendered-frame wait.
+
 The renderer owns the platform frame-end/screenshot details. CaptureAsync must
 return an attached `IUiTransitionImage` with genuine source pixels and its frame
 identity. WaitForRenderedFrameAsync completes after the new live layout actually
@@ -85,6 +92,9 @@ one content schedule and one retained image per batch. Source selection performs
 at most4096 ×64 ancestor lookups and4096 rectangle unions. Capture/publication/
 retirement arrays and sets each hold at most4096 regions. Input settlement is
 bounded by Unity's pointer domain. Observe allocates one bounded snapshot.
+The per-batch publication-root set holds at most4096 elements and is rebuilt and
+cleared with that batch. Nested request classification reads at most64 ancestors;
+it does not scan every active region or allocate per frame.
 The integrating renderer separately owns screen dimensions, GPU memory and
 capture costs; no CPU image readback is required by this API. Root publication
 and source/host inventory belong to the integrating framework/project.

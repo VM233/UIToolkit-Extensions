@@ -2,6 +2,17 @@
 
 All notable changes to this package are documented in this file.
 
+## [0.5.5] - 2026-11-05
+
+- Suppress nested animation only inside captured publication groups. Independent
+  siblings requested by a publication callback wait for their own source image.
+- Stop publication/notification work when callbacks consume that actual batch's
+  lifetime through document retirement or source-region removal.
+- Consume batch resources and scope region ownership before cleanup callbacks.
+  Reentrant completion retirement cannot dispose the old image twice.
+- Cover sibling capture, publication/completion retirement and source removal in
+  four native controlled-renderer lifetime controls.
+
 ## [0.5.4] - 2026-11-05
 
 - Publish immutable content/visibility phase arcs from the runtime protocol that
