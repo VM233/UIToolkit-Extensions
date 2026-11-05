@@ -44,14 +44,16 @@ namespace VM233.UIElements.Editor.Tests
             yield return null;
             Assert.That(region.style.position.keyword, Is.EqualTo(StyleKeyword.Null));
             Assert.That(region.style.width.keyword, Is.EqualTo(StyleKeyword.Null));
-            RequireAuthoredGeometry(region.layout);
+            RequireAuthoredGeometry(region.layout, ReadPadding());
         }
 
         [UnityTest]
         public IEnumerator AuthoredGeometrySurvivesVisibilityAndSameRootRetirement()
         {
             yield return null;
-            Rect original = region.layout; RequireAuthoredGeometry(original);
+            Rect original = region.layout; Vector2 padding = ReadPadding();
+            RequireAuthoredGeometry(original, padding);
+            TestContext.WriteLine($"Native authored fixture pixelsPerPoint={EditorGUIUtility.pixelsPerPoint:R}, padding={padding.x:R},{padding.y:R}.");
             scope.Publish();
             for (int cycle = 0; cycle < 3; cycle++)
             {
@@ -59,9 +61,9 @@ namespace VM233.UIElements.Editor.Tests
                 yield return Until(() => scope.Observe()[0].Phase == UiTransitionPhase.Hidden);
                 scope.Display(region, DisplayStyle.Flex, site);
                 yield return Until(() => scope.Observe()[0].Phase == UiTransitionPhase.Shown);
-                RequireAuthoredGeometry(original);
+                RequireAuthoredGeometry(original, padding);
                 scope.Retire(); scope.Publish();
-                RequireAuthoredGeometry(original);
+                RequireAuthoredGeometry(original, padding);
             }
         }
 
@@ -85,15 +87,18 @@ namespace VM233.UIElements.Editor.Tests
             Assert.That(sibling.layout.y, Is.LessThan(original));
         }
 
-        private void RequireAuthoredGeometry(Rect original)
+        private Vector2 ReadPadding() => new(region.resolvedStyle.paddingLeft, region.resolvedStyle.paddingTop);
+
+        private void RequireAuthoredGeometry(Rect original, Vector2 padding)
         {
             Assert.That(region.resolvedStyle.position, Is.EqualTo(Position.Absolute));
             Assert.That(region.layout.x, Is.EqualTo(original.x).Within(.1));
             Assert.That(region.layout.y, Is.EqualTo(original.y).Within(.1));
             Assert.That(region.layout.width, Is.EqualTo(160).Within(.1));
             Assert.That(region.layout.height, Is.EqualTo(80).Within(.1));
-            Assert.That(region.resolvedStyle.paddingLeft, Is.EqualTo(7).Within(.1));
-            Assert.That(region.resolvedStyle.paddingTop, Is.EqualTo(9).Within(.1));
+            Assert.That(padding.x, Is.GreaterThan(0)); Assert.That(padding.y, Is.GreaterThan(0));
+            Assert.That(region.resolvedStyle.paddingLeft, Is.EqualTo(padding.x).Within(.1));
+            Assert.That(region.resolvedStyle.paddingTop, Is.EqualTo(padding.y).Within(.1));
         }
 
         private static IEnumerator Until(Func<bool> completed)

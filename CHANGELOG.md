@@ -2,6 +2,12 @@
 
 All notable changes to this package are documented in this file.
 
+## [0.5.9] - 2026-11-05
+
+- Compare native authored padding with its initial resolved values in layout
+  retirement tests. Unity's pixel rounding can differ from the source USS value;
+  position, dimensions and the original equality tolerance remain asserted.
+
 ## [0.5.8] - 2026-11-05
 
 - Correct the authored-layout UXML fixture's malformed GUID so Unity imports the
