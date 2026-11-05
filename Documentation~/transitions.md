@@ -15,6 +15,18 @@ keyboard and navigation input cannot activate old content while it retires.
 Repeated requests do not restart an unchanged transition. Reversals continue
 from the current displayed opacity and restore authored style/flow at completion.
 
+Use Display for an independently layered region. Removing a region from flow can
+let later siblings cover it. A context change that also expands/repositions its
+neighbors belongs to one coherent Replace owner containing that complete layout.
+Do not mistake retained element existence for visible outgoing pixels.
+
+Clear and Remove are only for initial construction or an actually retired scope.
+They reject mutation while that document is presented, even if a hide request is
+pending. Visible rebuilding uses Replace. UiTransitionProtocol exposes immutable
+Visibility and Content arcs from the runtime phase authority; content advances
+through that ordered protocol and visibility begins validate its actual arcs.
+Initialization before presentation is distinct from those rendered transitions.
+
 ## Coherent content publication
 
 Replace accepts the identity of the complete visible state and its publication

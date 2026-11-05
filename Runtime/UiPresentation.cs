@@ -7,6 +7,20 @@ namespace VM233.UIElements
 {
     public static class UiPresentation
     {
+        public static void Clear(VisualElement element, string targetExpression,
+            [CallerFilePath] string file = "", [CallerMemberName] string member = "", [CallerLineNumber] int line = 0)
+        {
+            if (!Application.isPlaying || element.panel == null) { element.Clear(); return; }
+            Scope(element).ClearChildren(element);
+        }
+
+        public static void Remove(VisualElement element, string targetExpression,
+            [CallerFilePath] string file = "", [CallerMemberName] string member = "", [CallerLineNumber] int line = 0)
+        {
+            if (!Application.isPlaying || element.panel == null) { element.RemoveFromHierarchy(); return; }
+            Scope(element).RemoveElement(element);
+        }
+
         public static DisplayStyle Display(VisualElement element, DisplayStyle display, string targetExpression,
             [CallerFilePath] string file = "", [CallerMemberName] string member = "", [CallerLineNumber] int line = 0)
         {

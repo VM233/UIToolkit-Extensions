@@ -40,6 +40,24 @@ namespace VM233.UIElements
             Region(element).Request(display, site, Presented && AncestorsPresented(element));
         }
 
+        public void ClearChildren(VisualElement element)
+        {
+            RequireUnpublishedMutation(element);
+            element.Clear();
+        }
+
+        public void RemoveElement(VisualElement element)
+        {
+            RequireUnpublishedMutation(element);
+            element.RemoveFromHierarchy();
+        }
+
+        private void RequireUnpublishedMutation(VisualElement element)
+        {
+            if (Presented) throw new InvalidOperationException($"Presented UI '{element.name}' requires coherent replacement or completed retirement before hierarchy mutation.");
+            if (!root.Contains(element)) throw new ArgumentException("Hierarchy mutation must belong to this actual document scope.");
+        }
+
         private UiVisibilityTransition Region(VisualElement element)
         {
             if (!regions.TryGetValue(element, out var region))

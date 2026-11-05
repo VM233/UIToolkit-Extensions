@@ -149,6 +149,8 @@ namespace VM233.UIElements
 
         private void Begin(UiTransitionPhase phase, float destination, float duration, UiTransitionSite source)
         {
+            UiTransitionProtocol.RequireVisibility(segment?.Phase ??
+                (rendered == DisplayStyle.None ? UiTransitionPhase.Hidden : UiTransitionPhase.Shown), phase);
             if (!float.IsFinite(duration) || duration <= 0 || !float.IsFinite(distance()) || distance() < 0)
                 throw new InvalidOperationException("UI region motion requires a finite positive duration and nonnegative distance.");
             AcquireStyles(); activeSite = source;

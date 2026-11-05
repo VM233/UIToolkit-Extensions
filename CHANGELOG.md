@@ -2,6 +2,15 @@
 
 All notable changes to this package are documented in this file.
 
+## [0.5.4] - 2026-11-05
+
+- Publish immutable content/visibility phase arcs from the runtime protocol that
+  advances content and validates visibility changes. Source graph consumers can
+  use current capture/publication/render/crossfade phases instead of stale copies.
+- Add explicit Clear/Remove operations for initialization or actual retirement.
+  A presented document rejects both, preserving live content for coherent Replace.
+- Add a native control proving live mutation rejection and post-retirement release.
+
 ## [0.5.3] - 2026-11-05
 
 - Publish FrameWaitStarted immediately after assigning the actual renderer Task.

@@ -68,6 +68,23 @@ namespace VM233.UIElements.Editor.Tests
         }
 
         [UnityTest]
+        public IEnumerator LiveHierarchyMutationIsRejectedUntilActualScopeRetirement()
+        {
+            yield return null;
+            var child = new VisualElement(); region.Add(child);
+            scope.Publish();
+            Assert.Throws<InvalidOperationException>(() => scope.ClearChildren(region));
+            Assert.Throws<InvalidOperationException>(() => scope.RemoveElement(region));
+            Assert.That(region.Contains(child), Is.True);
+            Assert.That(region.parent, Is.SameAs(window.rootVisualElement));
+            scope.Retire();
+            scope.ClearChildren(region);
+            Assert.That(region.childCount, Is.Zero);
+            scope.RemoveElement(region);
+            Assert.That(region.parent, Is.Null);
+        }
+
+        [UnityTest]
         public IEnumerator SynchronousHideShowDoesNotRestartOrPublishHiddenState()
         {
             yield return null; scope.Publish();

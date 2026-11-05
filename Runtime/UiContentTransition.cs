@@ -63,7 +63,7 @@ namespace VM233.UIElements
                     if (pending.Count == 0) { schedule.Pause(); return; }
                     duration = seconds();
                     if (!float.IsFinite(duration) || duration <= 0) throw new InvalidOperationException("Content presentation requires a finite positive duration.");
-                    lifetime = new CancellationTokenSource(); phase = UiTransitionPhase.CapturingReplacement;
+                    lifetime = new CancellationTokenSource(); phase = UiTransitionProtocol.NextContent(phase);
                     capture = renderer.CaptureAsync(root, CaptureBounds, lifetime.Token);
                     waitStarted(phase, capture);
                 }
@@ -73,7 +73,7 @@ namespace VM233.UIElements
                     if (!image.ContainsSourcePixels) throw new InvalidOperationException("The admitted content image contains no actual source pixels.");
                     active = active.Where(region => region.HasPendingContent).ToArray();
                     if (active.Length == 0) { CompleteBatch(); return; }
-                    phase = UiTransitionPhase.PublishingReplacement;
+                    phase = UiTransitionProtocol.NextContent(phase);
                     foreach (var region in active)
                     {
                         pending.Remove(region);
@@ -81,13 +81,13 @@ namespace VM233.UIElements
                         region.SetContentPhase(phase, 0, true, image.CapturedFrame);
                         publish();
                     }
-                    phase = UiTransitionPhase.WaitingReplacementLayout;
+                    phase = UiTransitionProtocol.NextContent(phase);
                     Publish(0); rendered = renderer.WaitForRenderedFrameAsync(lifetime.Token);
                     waitStarted(phase, rendered);
                 }
                 if (phase == UiTransitionPhase.WaitingReplacementLayout && rendered.IsCompleted)
                 {
-                    rendered.GetAwaiter().GetResult(); phase = UiTransitionPhase.Replacing;
+                    rendered.GetAwaiter().GetResult(); phase = UiTransitionProtocol.NextContent(phase);
                     segment = new UiTransitionSegment(phase, 0, 1, clock(), duration);
                 }
                 if (phase == UiTransitionPhase.Replacing)
