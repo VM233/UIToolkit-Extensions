@@ -54,6 +54,14 @@ returns to the same admitted batch lifetime. If that callback retires the docume
 or removes its region, the consumed batch cannot publish another action or start
 a new rendered-frame wait.
 
+Use `UiPresentation.FocusAfter(target, barrier)` when opening a local region or
+restoring its opener. Both elements belong to the same scope. The scope keeps
+one latest intent and calls native Focus only after target/barrier ancestor
+transitions settle. Entering or captured content therefore cannot receive focus
+before the input-settlement boundary. A completed hidden reversal consumes an
+ineligible target; retirement consumes the intent without later focus. This
+adds at most128 ancestor lookups per transition notification and no schedule.
+
 The renderer owns the platform frame-end/screenshot details. CaptureAsync must
 return an attached `IUiTransitionImage` with genuine source pixels and its frame
 identity. WaitForRenderedFrameAsync completes after the new live layout actually

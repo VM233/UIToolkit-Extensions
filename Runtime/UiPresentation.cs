@@ -7,6 +7,12 @@ namespace VM233.UIElements
 {
     public static class UiPresentation
     {
+        public static void FocusAfter(VisualElement target, VisualElement barrier)
+        {
+            if (!Application.isPlaying || target.panel == null) { target.Focus(); return; }
+            Scope(target).FocusAfter(target, barrier);
+        }
+
         public static void Clear(VisualElement element, string targetExpression,
             [CallerFilePath] string file = "", [CallerMemberName] string member = "", [CallerLineNumber] int line = 0)
         {

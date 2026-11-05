@@ -34,6 +34,7 @@ namespace VM233.UIElements
         public DisplayStyle Requested { get; private set; }
         internal VisualElement Element => element;
         internal bool HasPendingContent => pendingContent != null;
+        internal bool InputSettled => segment == null && pendingContent == null && contentPhase == null && Requested == rendered;
 
         internal UiVisibilityTransition(VisualElement element, Func<float> seconds, Func<float> distance, Func<double> clock,
             Action<UiTransitionFrame> observed, Action<VisualElement> release,

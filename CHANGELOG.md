@@ -2,6 +2,14 @@
 
 All notable changes to this package are documented in this file.
 
+## [0.5.6] - 2026-11-05
+
+- Add scope-owned native focus intent with an explicit transition settlement
+  barrier. Enter/replacement completion and exit restoration consume the latest
+  intent; root retirement and a hidden reversal cannot leave a late focus.
+- Cover actual Unity focus during enter, exit, publication and retirement in
+  three native controls without another schedule or deadline.
+
 ## [0.5.5] - 2026-11-05
 
 - Suppress nested animation only inside captured publication groups. Independent

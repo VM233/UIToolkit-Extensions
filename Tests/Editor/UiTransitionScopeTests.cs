@@ -69,6 +69,62 @@ namespace VM233.UIElements.Editor.Tests
         }
 
         [UnityTest]
+        public IEnumerator NativeFocusWaitsForEnterAndExitSettlement()
+        {
+            var target = new Button(); region.Add(target);
+            var opener = new Button(); window.rootVisualElement.Add(opener);
+            region.style.display = DisplayStyle.None;
+            yield return null; scope.Publish(); opener.Focus();
+            scope.Display(region, DisplayStyle.Flex, site); scope.FocusAfter(target, region);
+            Assert.That(target.focusController.focusedElement, Is.Not.SameAs(target));
+            yield return Until(() => scope.Observe()[0].Phase == UiTransitionPhase.Shown);
+            Assert.That(target.focusController.focusedElement, Is.SameAs(target));
+            scope.Display(region, DisplayStyle.None, site); scope.FocusAfter(opener, region);
+            Assert.That(opener.focusController.focusedElement, Is.Not.SameAs(opener));
+            yield return Until(() => scope.Observe()[0].Phase == UiTransitionPhase.Hidden);
+            Assert.That(opener.focusController.focusedElement, Is.SameAs(opener));
+        }
+
+        [UnityTest]
+        public IEnumerator PublicationFocusWaitsAndRetirementConsumesItsIntent()
+        {
+            var target = new Button(); region.Add(target);
+            var opener = new Button(); window.rootVisualElement.Add(opener);
+            yield return null; scope.Publish(); opener.Focus();
+            scope.Replace(region, 1, () => { }, site);
+            scope.Replace(region, 2, () => scope.FocusAfter(target, region), site);
+            yield return Until(() => renderer.CapturePending); renderer.CompleteCapture();
+            yield return Until(() => renderer.RenderPending);
+            Assert.That(target.focusController.focusedElement, Is.Not.SameAs(target));
+            renderer.CompleteRender();
+            yield return Until(() => !scope.Observe()[0].Moving);
+            Assert.That(target.focusController.focusedElement, Is.SameAs(target));
+            opener.Focus();
+            scope.Replace(region, 3, () => { }, site); scope.FocusAfter(target, region);
+            yield return Until(() => renderer.CapturePending);
+            scope.Retire(); scope.Publish();
+            yield return null;
+            Assert.That(target.focusController.focusedElement, Is.Not.SameAs(target));
+        }
+
+        [UnityTest]
+        public IEnumerator ReversalToHiddenCannotFocusOrKeepAnObsoleteIntent()
+        {
+            var target = new Button(); region.Add(target);
+            var opener = new Button(); window.rootVisualElement.Add(opener);
+            region.style.display = DisplayStyle.None;
+            yield return null; scope.Publish(); opener.Focus();
+            scope.Display(region, DisplayStyle.Flex, site); scope.FocusAfter(target, region);
+            yield return Until(() => frames.Any(frame => frame.Phase == UiTransitionPhase.Entering));
+            scope.Display(region, DisplayStyle.None, site);
+            yield return Until(() => scope.Observe()[0].Phase == UiTransitionPhase.Hidden);
+            Assert.That(target.focusController.focusedElement, Is.Not.SameAs(target));
+            scope.Display(region, DisplayStyle.Flex, site);
+            yield return Until(() => scope.Observe()[0].Phase == UiTransitionPhase.Shown);
+            Assert.That(target.focusController.focusedElement, Is.Not.SameAs(target));
+        }
+
+        [UnityTest]
         public IEnumerator LiveHierarchyMutationIsRejectedUntilActualScopeRetirement()
         {
             yield return null;

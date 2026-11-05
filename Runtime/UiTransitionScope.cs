@@ -13,6 +13,7 @@ namespace VM233.UIElements
         private readonly Func<double> clock;
         private readonly IUiTransitionRenderer renderer;
         private UiContentTransition content;
+        private VisualElement focusTarget, focusBarrier;
         public bool Presented { get; private set; }
         public int RegionCount => regions.Count;
         public bool HasRetainedImage => content.HasImage;
@@ -33,6 +34,36 @@ namespace VM233.UIElements
         {
             if (content.Retired) content = CreateContent();
             Presented = true;
+            SettleFocus();
+        }
+
+        public void FocusAfter(VisualElement target, VisualElement barrier)
+        {
+            if (!root.Contains(target) || !root.Contains(barrier))
+                throw new ArgumentException("Focus target and settlement barrier must belong to this document scope.");
+            focusTarget = target; focusBarrier = barrier;
+            SettleFocus();
+        }
+
+        private bool Settled(VisualElement element)
+        {
+            int depth = 0;
+            for (var current = element; current != null && !ReferenceEquals(current, root); current = current.parent)
+            {
+                if (++depth > 64) throw new InvalidOperationException("Focus settlement exceeds64 ancestor links.");
+                if (regions.TryGetValue(current, out var region) && !region.InputSettled) return false;
+            }
+            return true;
+        }
+
+        private void SettleFocus()
+        {
+            if (!Presented || focusTarget == null) return;
+            var target = focusTarget; var barrier = focusBarrier;
+            if (!root.Contains(target) || !root.Contains(barrier)) { focusTarget = focusBarrier = null; return; }
+            if (!Settled(target) || !Settled(barrier)) return;
+            focusTarget = focusBarrier = null;
+            if (target.enabledInHierarchy && target.visible && target.resolvedStyle.display != DisplayStyle.None) target.Focus();
         }
 
         public void Display(VisualElement element, DisplayStyle display, UiTransitionSite site)
@@ -101,7 +132,11 @@ namespace VM233.UIElements
             return result;
         }
 
-        private void PublishFrame(UiTransitionFrame frame) => Observed?.Invoke(frame);
+        private void PublishFrame(UiTransitionFrame frame)
+        {
+            Observed?.Invoke(frame);
+            SettleFocus();
+        }
 
         private UiContentTransition CreateContent() => new(root, regions, renderer, seconds, clock,
             (phase, task) => FrameWaitStarted?.Invoke(phase, task));
@@ -115,6 +150,7 @@ namespace VM233.UIElements
         public void Retire()
         {
             Presented = false;
+            focusTarget = focusBarrier = null;
             var owned = new List<UiVisibilityTransition>(regions.Values);
             regions.Clear();
             var retirement = new UiTransitionRetirement(); retirement.Attempt(content.Retire);
