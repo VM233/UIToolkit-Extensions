@@ -1,7 +1,7 @@
 # Retained UI transitions
 
 `UiTransitionScope` owns one real document root. An `IUiTransitionHost` exposes
-it to `UiPresentation.Display` and `Replace`. Supply the presentation clock,
+it to `UiPresentation.Display`, `Visibility` and `Replace`. Supply the presentation clock,
 duration, distance and an `IUiTransitionRenderer`; call Publish after the actual
 first layout, and Retire at root release. Caller coordinates plus the explicit
 target expression identify each source site.
@@ -16,6 +16,13 @@ rendered. Existing pointer capture/focus is released in that region; pointer,
 keyboard and navigation input cannot activate old content while it retires.
 Repeated requests do not restart an unchanged transition. Reversals continue
 from the current displayed opacity and release appearance overrides at completion.
+
+Visibility uses the same region and animation as Display, and retains layout at
+its hidden terminal state. Both display and visibility intents must admit drawing.
+Use StyleKeyword.Null to reveal inherited content without overriding a hidden
+ancestor. Synchronous projection requests coalesce; hidden/revealed requests do
+not create competing opacity writers. Positioning owners retain left/top/size;
+the transition exclusively owns temporary opacity/translation overrides.
 
 Use Display for an independently layered region. A context change that also
 expands/repositions its neighbors belongs to one coherent Replace owner

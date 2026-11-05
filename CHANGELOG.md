@@ -2,6 +2,14 @@
 
 All notable changes to this package are documented in this file.
 
+## [0.5.12] - 2026-11-05
+
+- Add layout-preserving Visibility intent to the existing document region owner.
+  Compose it with Display in one reversible segment and one input lifetime.
+- Preserve inherited reveal semantics and synchronous projection coalescing.
+- Cover retained geometry, outgoing input, mixed intents, reversal and retirement
+  with actual native elements.
+
 ## [0.5.11] - 2026-11-05
 
 - Treat the scope's exact root as owned alongside its strict descendants.

@@ -71,6 +71,11 @@ namespace VM233.UIElements
             Region(element).Request(display, site, Presented && AncestorsPresented(element));
         }
 
+        public void Visibility(VisualElement element, StyleEnum<Visibility> visibility, UiTransitionSite site)
+        {
+            Region(element).RequestVisibility(visibility, site, Presented && AncestorsPresented(element));
+        }
+
         public void Initialize(VisualElement element, Action initialize)
         {
             RequireUnpublishedMutation(element);
@@ -112,8 +117,8 @@ namespace VM233.UIElements
         {
             if (ReferenceEquals(element, root)) throw new ArgumentException("Local replacement must be inside its retained document host.");
             Region(element).Replace(identity, publish, site,
-                Presented && AncestorsPresented(element) && RequestedDisplay(element) != DisplayStyle.None &&
-                element.resolvedStyle.display != DisplayStyle.None && element.resolvedStyle.visibility == Visibility.Visible && element.resolvedStyle.opacity > 0);
+                Presented && AncestorsPresented(element) && Region(element).RequestedVisible &&
+                element.resolvedStyle.display != DisplayStyle.None && element.resolvedStyle.visibility == UnityEngine.UIElements.Visibility.Visible && element.resolvedStyle.opacity > 0);
         }
 
         private bool AncestorsPresented(VisualElement element)
@@ -123,7 +128,7 @@ namespace VM233.UIElements
             {
                 if (regions.TryGetValue(ancestor, out var region) && region.Requested == DisplayStyle.None) return false;
                 if (ancestor.resolvedStyle.display == DisplayStyle.None) return false;
-                if (ancestor.resolvedStyle.visibility != Visibility.Visible || ancestor.resolvedStyle.opacity == 0) return false;
+                if (ancestor.resolvedStyle.visibility != UnityEngine.UIElements.Visibility.Visible || ancestor.resolvedStyle.opacity == 0) return false;
                 if (ReferenceEquals(ancestor, root)) break;
             }
             return true;

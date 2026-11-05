@@ -52,6 +52,13 @@ namespace VM233.UIElements
             return Scope(element).RequestedDisplay(element);
         }
 
+        public static void Visibility(VisualElement element, StyleEnum<Visibility> visibility, string targetExpression,
+            [CallerFilePath] string file = "", [CallerMemberName] string member = "", [CallerLineNumber] int line = 0)
+        {
+            if (!Application.isPlaying || element.panel == null) { element.style.visibility = visibility; return; }
+            Scope(element).Visibility(element, visibility, new UiTransitionSite(file, member, line, targetExpression));
+        }
+
         public static void Replace(VisualElement element, object identity, Action publish, string targetExpression,
             [CallerFilePath] string file = "", [CallerMemberName] string member = "", [CallerLineNumber] int line = 0)
         {

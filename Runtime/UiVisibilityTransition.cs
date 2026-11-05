@@ -15,6 +15,8 @@ namespace VM233.UIElements
         private readonly IVisualElementScheduledItem commit, animation;
         private UiTransitionSite requestedSite, contentSite, activeSite;
         private DisplayStyle rendered;
+        private StyleEnum<Visibility> requestedVisibility, renderedVisibility, segmentVisibility;
+        private DisplayStyle segmentDisplay;
         private UiTransitionSegment segment;
         private float opacity;
         private bool contentInitialized, ownsStyles, retired;
@@ -30,9 +32,13 @@ namespace VM233.UIElements
         private float authoredOpacity;
         private Translate authoredTranslate;
         public DisplayStyle Requested { get; private set; }
+        internal bool RequestedVisible => Requested != DisplayStyle.None && Visible(requestedVisibility);
+        private bool RenderedVisible => rendered != DisplayStyle.None && Visible(renderedVisibility);
+        private static bool Visible(StyleEnum<Visibility> value) => value.keyword != StyleKeyword.Undefined || value.value == Visibility.Visible;
         internal VisualElement Element => element;
         internal bool HasPendingContent => pendingContent != null;
-        internal bool InputSettled => segment == null && pendingContent == null && contentPhase == null && Requested == rendered;
+        internal bool InputSettled => segment == null && pendingContent == null && contentPhase == null &&
+            Requested == rendered && requestedVisibility.Equals(renderedVisibility);
 
         internal UiVisibilityTransition(VisualElement element, Func<float> seconds, Func<float> distance, Func<double> clock,
             Action<UiTransitionFrame> observed, Action<VisualElement> release,
@@ -43,7 +49,8 @@ namespace VM233.UIElements
             this.contentRequested = contentRequested; this.contentRemoved = contentRemoved;
             rendered = Requested = element.style.display.keyword == StyleKeyword.Undefined
                 ? element.style.display.value : element.resolvedStyle.display;
-            opacity = rendered == DisplayStyle.None ? 0 : 1;
+            requestedVisibility = renderedVisibility = element.style.visibility;
+            opacity = RenderedVisible ? 1 : 0;
             commit = element.schedule.Execute(Commit); commit.Pause();
             animation = element.schedule.Execute(Advance).Every(16); animation.Pause();
             RegisterInput(true); element.RegisterCallback<DetachFromPanelEvent>(Detached);
@@ -51,12 +58,24 @@ namespace VM233.UIElements
 
         internal void Request(DisplayStyle display, UiTransitionSite source, bool animate)
         {
-            requestedSite = source; Requested = display;
-            if (display == DisplayStyle.None) { pendingContent = null; contentRequested(this); }
+            Requested = display;
+            Request(source, animate);
+        }
+
+        internal void RequestVisibility(StyleEnum<Visibility> visibility, UiTransitionSite source, bool animate)
+        {
+            requestedVisibility = visibility;
+            Request(source, animate);
+        }
+
+        private void Request(UiTransitionSite source, bool animate)
+        {
+            requestedSite = source;
+            if (!RequestedVisible) { pendingContent = null; contentRequested(this); }
             if (segment == null && pendingContent == null && contentPhase == null) activeSite = source;
             if (!animate)
             {
-                commit.Pause(); Settle(display);
+                commit.Pause(); Settle(Requested, requestedVisibility);
                 if (contentPhase == null) activeSite = source;
                 observed(Observe());
             }
@@ -129,42 +148,46 @@ namespace VM233.UIElements
             double now = clock(); opacity = current.Sample(now); Apply(current.Destination);
             if (!current.Complete(now)) return;
             segment = null; animation.Pause();
-            if (current.Phase == UiTransitionPhase.Exiting) Settle(DisplayStyle.None);
-            else if (current.Phase == UiTransitionPhase.Entering) Settle(DisplayStyle.Flex);
+            Settle(segmentDisplay, segmentVisibility);
         }
 
         private void Reconcile()
         {
-            if (Requested == DisplayStyle.None)
+            if (!RequestedVisible)
             {
                 if (segment?.Phase == UiTransitionPhase.Exiting) return;
-                if (opacity == 0 || rendered == DisplayStyle.None) { Settle(DisplayStyle.None); return; }
+                if (opacity == 0 || !RenderedVisible) { Settle(Requested, requestedVisibility); return; }
                 Begin(UiTransitionPhase.Exiting, 0, seconds(), requestedSite); return;
             }
             if (segment?.Phase == UiTransitionPhase.Entering) return;
-            if (opacity == 1 && rendered != DisplayStyle.None) { Settle(DisplayStyle.Flex); return; }
+            if (opacity == 1 && RenderedVisible) { Settle(Requested, requestedVisibility); return; }
             Begin(UiTransitionPhase.Entering, 1, seconds(), requestedSite);
         }
 
         private void Begin(UiTransitionPhase phase, float destination, float duration, UiTransitionSite source)
         {
             UiTransitionProtocol.RequireVisibility(segment?.Phase ??
-                (rendered == DisplayStyle.None ? UiTransitionPhase.Hidden : UiTransitionPhase.Shown), phase);
+                (RenderedVisible ? UiTransitionPhase.Shown : UiTransitionPhase.Hidden), phase);
             if (!float.IsFinite(duration) || duration <= 0 || !float.IsFinite(distance()) || distance() < 0)
                 throw new InvalidOperationException("UI region motion requires a finite positive duration and nonnegative distance.");
             AcquireStyles(); activeSite = source;
             segment = new UiTransitionSegment(phase, opacity, destination, clock(), duration);
+            segmentDisplay = Requested; segmentVisibility = requestedVisibility;
             intermediateFrames = 0; lastIntermediateFrame = -1;
             SettleInput();
-            if (phase == UiTransitionPhase.Entering) { rendered = DisplayStyle.Flex; element.style.display = DisplayStyle.Flex; }
+            if (phase == UiTransitionPhase.Entering)
+            {
+                rendered = Requested; renderedVisibility = requestedVisibility;
+                element.style.display = rendered; element.style.visibility = renderedVisibility;
+            }
             Apply(destination); animation.Resume();
         }
 
-        private void Settle(DisplayStyle display)
+        private void Settle(DisplayStyle display, StyleEnum<Visibility> visibility)
         {
             segment = null; animation.Pause(); rendered = display;
-            opacity = display == DisplayStyle.None ? 0 : 1;
-            element.style.display = display; RestoreStyles();
+            renderedVisibility = visibility; opacity = RenderedVisible ? 1 : 0;
+            element.style.display = display; element.style.visibility = visibility; RestoreStyles();
         }
 
         private void AcquireStyles()
@@ -202,7 +225,7 @@ namespace VM233.UIElements
         }
 
         private void Block<T>(T evt) where T : EventBase<T>, new()
-        { if (segment != null || pendingContent != null || contentPhase != null || Requested == DisplayStyle.None) evt.StopImmediatePropagation(); }
+        { if (segment != null || pendingContent != null || contentPhase != null || !RequestedVisible) evt.StopImmediatePropagation(); }
 
         private void RegisterInput(bool register)
         {
@@ -222,8 +245,8 @@ namespace VM233.UIElements
             bool replacing = contentPhase != null || pendingContent != null;
             var phase = retired ? UiTransitionPhase.Retired : contentPhase ??
                 (pendingContent != null ? UiTransitionPhase.CapturingReplacement : segment?.Phase ??
-                    (rendered == DisplayStyle.None ? UiTransitionPhase.Hidden : UiTransitionPhase.Shown));
-            return new UiTransitionFrame(activeSite, element, Requested != DisplayStyle.None, phase,
+                    (RenderedVisible ? UiTransitionPhase.Shown : UiTransitionPhase.Hidden));
+            return new UiTransitionFrame(activeSite, element, RequestedVisible, phase,
                 replacing ? contentProgress : opacity, replacing ? contentIntermediateFrames : intermediateFrames, clock(),
                 contentPixels, contentCaptureFrame);
         }
@@ -237,7 +260,7 @@ namespace VM233.UIElements
         {
             commit.Pause(); pendingContent = null;
             var retirement = new UiTransitionRetirement();
-            retirement.Attempt(() => contentRemoved(this)); retirement.Attempt(() => Settle(Requested)); retired = true;
+            retirement.Attempt(() => contentRemoved(this)); retirement.Attempt(() => Settle(Requested, requestedVisibility)); retired = true;
             retirement.Attempt(() => RegisterInput(false));
             element.UnregisterCallback<DetachFromPanelEvent>(Detached);
             retirement.Attempt(() => observed(Observe())); retirement.ThrowIfFailed();

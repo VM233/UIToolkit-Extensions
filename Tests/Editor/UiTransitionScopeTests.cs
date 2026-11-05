@@ -86,6 +86,70 @@ namespace VM233.UIElements.Editor.Tests
         }
 
         [UnityTest]
+        public IEnumerator LayoutVisibilityRetainsSpaceAndBlocksItsOutgoingInput()
+        {
+            var button = new Button(); region.Add(button);
+            int clicks = 0; button.clicked += () => clicks++;
+            yield return null; scope.Publish();
+            Rect original = region.layout;
+            scope.Visibility(region, Visibility.Hidden, site);
+            bool intermediate = false;
+            scope.Observed += frame =>
+            {
+                if (frame.Phase != UiTransitionPhase.Exiting || frame.Opacity <= 0 || frame.Opacity >= 1) return;
+                Assert.That(region.resolvedStyle.visibility, Is.EqualTo(Visibility.Visible));
+                using (var click = ClickEvent.GetPooled()) { click.target = button; button.SendEvent(click); }
+                intermediate = true;
+            };
+            yield return Until(() => scope.Observe()[0].Phase == UiTransitionPhase.Hidden);
+            Assert.That(intermediate, Is.True, History()); Assert.That(clicks, Is.Zero);
+            Assert.That(region.layout, Is.EqualTo(original));
+            Assert.That(region.resolvedStyle.display, Is.EqualTo(DisplayStyle.Flex));
+            Assert.That(region.resolvedStyle.visibility, Is.EqualTo(Visibility.Hidden));
+            scope.Visibility(region, StyleKeyword.Null, site);
+            yield return Until(() => scope.Observe()[0].Phase == UiTransitionPhase.Shown);
+            Assert.That(region.style.visibility.keyword, Is.EqualTo(StyleKeyword.Null));
+            Assert.That(region.layout, Is.EqualTo(original));
+        }
+
+        [UnityTest]
+        public IEnumerator DisplayAndLayoutVisibilityShareOneSegmentAndBothMustAdmitRendering()
+        {
+            yield return null; scope.Publish();
+            scope.Visibility(region, Visibility.Hidden, site);
+            yield return Until(() => scope.Observe()[0].Phase == UiTransitionPhase.Hidden);
+            scope.Display(region, DisplayStyle.None, site); scope.Visibility(region, StyleKeyword.Null, site);
+            yield return Until(() => region.style.display.value == DisplayStyle.None);
+            Assert.That(scope.Observe()[0].RequestedVisible, Is.False);
+            scope.Display(region, DisplayStyle.Flex, site);
+            yield return Until(() => frames.Any(frame => frame.Phase == UiTransitionPhase.Entering && frame.Opacity > 0 && frame.Opacity < 1));
+            scope.Visibility(region, Visibility.Hidden, site);
+            yield return Until(() => scope.Observe()[0].Phase == UiTransitionPhase.Hidden);
+            Assert.That(scope.RegionCount, Is.EqualTo(1));
+            Assert.That(region.resolvedStyle.display, Is.EqualTo(DisplayStyle.Flex));
+            Assert.That(region.resolvedStyle.visibility, Is.EqualTo(Visibility.Hidden));
+            scope.Retire(); Assert.That(scope.RegionCount, Is.Zero);
+        }
+
+        [UnityTest]
+        public IEnumerator ProjectionRequestsCoalesceAndRevealPreservesInheritedVisibility()
+        {
+            var child = new VisualElement(); region.Add(child);
+            yield return null; scope.Publish();
+            scope.Visibility(child, Visibility.Hidden, site); scope.Visibility(child, StyleKeyword.Null, site);
+            yield return null;
+            Assert.That(scope.Observe().Any(frame => frame.Moving), Is.False);
+            Assert.That(child.style.visibility.keyword, Is.EqualTo(StyleKeyword.Null));
+            scope.Visibility(region, Visibility.Hidden, site);
+            yield return Until(() => scope.Observe().Any(frame => ReferenceEquals(frame.Element, region) && frame.Phase == UiTransitionPhase.Hidden));
+            yield return null;
+            Assert.That(child.resolvedStyle.visibility, Is.EqualTo(Visibility.Hidden));
+            scope.Visibility(child, StyleKeyword.Null, site);
+            Assert.That(child.style.visibility.keyword, Is.EqualTo(StyleKeyword.Null));
+            Assert.That(scope.Observe().Single(frame => ReferenceEquals(frame.Element, child)).Moving, Is.False);
+        }
+
+        [UnityTest]
         public IEnumerator PublicationFocusWaitsAndRetirementConsumesItsIntent()
         {
             var target = new Button(); region.Add(target);
