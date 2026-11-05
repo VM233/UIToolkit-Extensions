@@ -160,6 +160,24 @@ namespace VM233.UIElements.Editor.Tests
         }
 
         [UnityTest]
+        public IEnumerator TheActualDocumentRootBelongsToItsOwnUnpublishedScope()
+        {
+            yield return null;
+            var root = window.rootVisualElement;
+            Assert.That(root.Contains(root), Is.False, "Unity Contains tests strict descendants.");
+            int calls = 0;
+            scope.Initialize(root, () => calls++);
+            Assert.That(calls, Is.EqualTo(1));
+            scope.Publish();
+            Assert.Throws<InvalidOperationException>(() => scope.Initialize(root, () => calls++));
+            Assert.That(calls, Is.EqualTo(1));
+            scope.Retire(); scope.Initialize(root, () => calls++);
+            Assert.That(calls, Is.EqualTo(2));
+            Assert.Throws<ArgumentException>(() => scope.Initialize(new VisualElement(), () => calls++));
+            Assert.That(calls, Is.EqualTo(2));
+        }
+
+        [UnityTest]
         public IEnumerator SynchronousHideShowDoesNotRestartOrPublishHiddenState()
         {
             yield return null; scope.Publish();

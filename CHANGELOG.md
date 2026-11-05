@@ -2,6 +2,14 @@
 
 All notable changes to this package are documented in this file.
 
+## [0.5.11] - 2026-11-05
+
+- Treat the scope's exact root as owned alongside its strict descendants.
+  Unity Contains excludes the receiver itself. Keep presented initialization
+  and foreign-root rejection in the hierarchy mutation owner.
+- Add the native actual-root binding/retirement counterexample missed by the
+  earlier child-only initialization control.
+
 ## [0.5.10] - 2026-11-05
 
 - Add synchronous Initialize for attached-root binding before publication and

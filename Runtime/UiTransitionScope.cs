@@ -92,7 +92,8 @@ namespace VM233.UIElements
         private void RequireUnpublishedMutation(VisualElement element)
         {
             if (Presented) throw new InvalidOperationException($"Presented UI '{element.name}' requires coherent replacement or completed retirement before hierarchy mutation.");
-            if (!root.Contains(element)) throw new ArgumentException("Hierarchy mutation must belong to this actual document scope.");
+            if (!ReferenceEquals(element, root) && !root.Contains(element))
+                throw new ArgumentException("Hierarchy mutation must belong to this actual document scope.");
         }
 
         private UiVisibilityTransition Region(VisualElement element)

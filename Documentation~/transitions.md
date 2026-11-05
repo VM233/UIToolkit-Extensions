@@ -32,6 +32,9 @@ Initialize runs one synchronous binding callback under the same unpublished
 mutation check. Use it around attached-root binding before Publish, or actual
 retired-root rebind. It rejects an already presented scope before invoking the
 callback and never grants later/deferred callbacks an initialization context.
+The exact scope root is owned as well as its descendants: Unity Contains checks
+strict descendants and excludes the receiver itself. Presented initialization
+and foreign-root checks apply equally to root and child targets.
 
 ## Coherent content publication
 
