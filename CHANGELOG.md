@@ -2,6 +2,14 @@
 
 All notable changes to this package are documented in this file.
 
+## [0.5.7] - 2026-11-05
+
+- Preserve authored geometry throughout visibility exit, reversal and scope
+  reuse. Remove the exit position/size override and IStyle getter restoration,
+  which cannot represent UXML inline rules and displaced a real reused menu.
+- Add native UXML authoring and in-flow exit controls, including repeated
+  visibility and actual scope retirement/republication.
+
 ## [0.5.6] - 2026-11-05
 
 - Add scope-owned native focus intent with an explicit transition settlement

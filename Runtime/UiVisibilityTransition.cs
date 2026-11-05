@@ -29,8 +29,6 @@ namespace VM233.UIElements
         private StyleTranslate originalTranslate;
         private float authoredOpacity;
         private Translate authoredTranslate;
-        private StyleEnum<Position> originalPosition;
-        private StyleLength originalLeft, originalTop, originalRight, originalBottom, originalWidth, originalHeight;
         public DisplayStyle Requested { get; private set; }
         internal VisualElement Element => element;
         internal bool HasPendingContent => pendingContent != null;
@@ -158,8 +156,7 @@ namespace VM233.UIElements
             segment = new UiTransitionSegment(phase, opacity, destination, clock(), duration);
             intermediateFrames = 0; lastIntermediateFrame = -1;
             SettleInput();
-            if (phase == UiTransitionPhase.Exiting) FreezeOutgoingLayout();
-            else { RestoreLayout(); rendered = DisplayStyle.Flex; element.style.display = DisplayStyle.Flex; }
+            if (phase == UiTransitionPhase.Entering) { rendered = DisplayStyle.Flex; element.style.display = DisplayStyle.Flex; }
             Apply(destination); animation.Resume();
         }
 
@@ -176,19 +173,6 @@ namespace VM233.UIElements
             ownsStyles = true;
             originalOpacity = element.style.opacity; originalTranslate = element.style.translate;
             authoredOpacity = element.resolvedStyle.opacity; authoredTranslate = element.resolvedStyle.translate;
-            originalPosition = element.style.position; originalLeft = element.style.left; originalTop = element.style.top;
-            originalRight = element.style.right; originalBottom = element.style.bottom;
-            originalWidth = element.style.width; originalHeight = element.style.height;
-        }
-
-        private void FreezeOutgoingLayout()
-        {
-            var bounds = element.layout;
-            element.style.position = Position.Absolute;
-            element.style.left = bounds.x - element.resolvedStyle.marginLeft;
-            element.style.top = bounds.y - element.resolvedStyle.marginTop;
-            element.style.right = StyleKeyword.Auto; element.style.bottom = StyleKeyword.Auto;
-            element.style.width = bounds.width; element.style.height = bounds.height;
         }
 
         private void Apply(float destination)
@@ -200,17 +184,10 @@ namespace VM233.UIElements
             element.style.translate = new Translate(authoredTranslate.x, baseY + offset, authoredTranslate.z);
         }
 
-        private void RestoreLayout()
-        {
-            element.style.position = originalPosition; element.style.left = originalLeft; element.style.top = originalTop;
-            element.style.right = originalRight; element.style.bottom = originalBottom;
-            element.style.width = originalWidth; element.style.height = originalHeight;
-        }
-
         private void RestoreStyles()
         {
             if (!ownsStyles) return;
-            RestoreLayout(); element.style.opacity = originalOpacity; element.style.translate = originalTranslate;
+            element.style.opacity = originalOpacity; element.style.translate = originalTranslate;
             ownsStyles = false;
         }
 

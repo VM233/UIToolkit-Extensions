@@ -1,0 +1,5 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:VisualElement name="Fixture" style="width: 240px; height: 200px;">
+        <ui:VisualElement name="AuthoredRegion" style="position: absolute; left: 13px; top: 11px; width: 160px; height: 80px; padding-left: 7px; padding-top: 9px;"/>
+    </ui:VisualElement>
+</ui:UXML>

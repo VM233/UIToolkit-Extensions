@@ -7,17 +7,19 @@ first layout, and Retire at root release. Caller coordinates plus the explicit
 target expression identify each source site.
 
 Display requests coalesce within the producer's synchronous update. A retiring
-region retains its current pixels in an absolute copy of its original layout
-until opacity reaches zero; no duplicate element/document or image is created.
+region stays in its authored layout until opacity reaches zero; no duplicate
+element/document or image is created. The driver never overwrites position,
+edges or size. UXML inline rules are distinct from programmatic IStyle values,
+so reading and restoring IStyle getters cannot snapshot authored geometry.
 The caller reads `RequestedDisplay`, since the outgoing element can still be
 rendered. Existing pointer capture/focus is released in that region; pointer,
 keyboard and navigation input cannot activate old content while it retires.
 Repeated requests do not restart an unchanged transition. Reversals continue
-from the current displayed opacity and restore authored style/flow at completion.
+from the current displayed opacity and release appearance overrides at completion.
 
-Use Display for an independently layered region. Removing a region from flow can
-let later siblings cover it. A context change that also expands/repositions its
-neighbors belongs to one coherent Replace owner containing that complete layout.
+Use Display for an independently layered region. A context change that also
+expands/repositions its neighbors belongs to one coherent Replace owner
+containing that complete layout.
 Do not mistake retained element existence for visible outgoing pixels.
 
 Clear and Remove are only for initial construction or an actually retired scope.
