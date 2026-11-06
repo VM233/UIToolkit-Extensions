@@ -27,6 +27,17 @@ namespace VM233.UIElements
             Scope(element).ClearChildren(element);
         }
 
+        public static void AttachHidden(VisualElement parent, VisualElement child, string targetExpression,
+            [CallerFilePath] string file = "", [CallerMemberName] string member = "", [CallerLineNumber] int line = 0)
+        {
+            if (!Application.isPlaying || parent.panel == null)
+            {
+                UiTransitionScope.AppendHidden(parent, child);
+                return;
+            }
+            Scope(parent).AttachHidden(parent, child);
+        }
+
         public static void Remove(VisualElement element, string targetExpression,
             [CallerFilePath] string file = "", [CallerMemberName] string member = "", [CallerLineNumber] int line = 0)
         {

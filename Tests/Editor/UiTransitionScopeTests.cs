@@ -206,6 +206,50 @@ namespace VM233.UIElements.Editor.Tests
         }
 
         [UnityTest]
+        public IEnumerator HiddenAttachmentRetainsNativeLayoutPickingAndLaterEntranceOwnership()
+        {
+            yield return null; scope.Publish();
+            var child = new Button(); child.style.width = 40; child.style.height = 20;
+            child.style.display = DisplayStyle.None;
+            scope.AttachHidden(region, child);
+            yield return null;
+            Assert.That(child.parent, Is.SameAs(region));
+            Assert.That(child.panel, Is.SameAs(region.panel));
+            Assert.That(child.resolvedStyle.display, Is.EqualTo(DisplayStyle.None));
+            Assert.That(child.layout.width, Is.Zero); Assert.That(child.layout.height, Is.Zero);
+            Assert.That(scope.RegionCount, Is.Zero);
+            Assert.That(renderer.CapturePending, Is.False);
+            Assert.That(scope.PendingFrameWait, Is.Null);
+            scope.Display(child, DisplayStyle.Flex, new UiTransitionSite("Fixture.cs", "Attach", 1, "child"));
+            yield return Until(() => scope.Observe().Single().Phase == UiTransitionPhase.Shown);
+            Assert.That(frames.Any(frame => frame.Element == child && frame.Phase == UiTransitionPhase.Entering &&
+                frame.Opacity is > 0 and < 1), Is.True, History());
+            Assert.That(child.layout.width, Is.GreaterThan(0)); Assert.That(child.layout.height, Is.GreaterThan(0));
+            var picked = child.panel.Pick(child.worldBound.center);
+            Assert.That(ReferenceEquals(picked, child) || child.Contains(picked), Is.True);
+            Assert.That(renderer.CapturePending, Is.False);
+            scope.Retire(); Assert.That(scope.RegionCount, Is.Zero); Assert.That(scope.HasRetainedImage, Is.False);
+        }
+
+        [UnityTest]
+        public IEnumerator HiddenAttachmentRejectsVisibleOwnedAndForeignElementsWithoutReparenting()
+        {
+            yield return null; scope.Publish();
+            var visible = new VisualElement(); visible.style.display = DisplayStyle.Flex;
+            Assert.Throws<InvalidOperationException>(() => scope.AttachHidden(region, visible));
+            Assert.That(visible.parent, Is.Null);
+            var child = new VisualElement(); child.style.display = DisplayStyle.None;
+            var foreign = new VisualElement();
+            Assert.Throws<ArgumentException>(() => scope.AttachHidden(foreign, child));
+            Assert.That(child.parent, Is.Null);
+            scope.AttachHidden(region, child);
+            Assert.Throws<InvalidOperationException>(() => scope.AttachHidden(window.rootVisualElement, child));
+            Assert.That(child.parent, Is.SameAs(region));
+            Assert.Throws<InvalidOperationException>(() => scope.Initialize(region, () => visible.Add(child)));
+            Assert.That(child.parent, Is.SameAs(region));
+        }
+
+        [UnityTest]
         public IEnumerator InitializationRequiresTheActualUnpublishedDocument()
         {
             yield return null;

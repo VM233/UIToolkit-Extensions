@@ -88,6 +88,20 @@ namespace VM233.UIElements
             element.Clear();
         }
 
+        public void AttachHidden(VisualElement parent, VisualElement child)
+        {
+            RequireOwned(parent);
+            AppendHidden(parent, child);
+        }
+
+        internal static void AppendHidden(VisualElement parent, VisualElement child)
+        {
+            if (child.parent != null || child.panel != null || child.style.display.keyword != StyleKeyword.Undefined ||
+                child.style.display.value != DisplayStyle.None)
+                throw new InvalidOperationException("Hidden attachment requires an unparented, unattached child with explicit inline display:none.");
+            parent.Add(child);
+        }
+
         public void RemoveElement(VisualElement element)
         {
             RequireUnpublishedMutation(element);
@@ -97,6 +111,11 @@ namespace VM233.UIElements
         private void RequireUnpublishedMutation(VisualElement element)
         {
             if (Presented) throw new InvalidOperationException($"Presented UI '{element.name}' requires coherent replacement or completed retirement before hierarchy mutation.");
+            RequireOwned(element);
+        }
+
+        private void RequireOwned(VisualElement element)
+        {
             if (!ReferenceEquals(element, root) && !root.Contains(element))
                 throw new ArgumentException("Hierarchy mutation must belong to this actual document scope.");
         }

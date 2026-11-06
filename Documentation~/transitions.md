@@ -43,6 +43,18 @@ The exact scope root is owned as well as its descendants: Unity Contains checks
 strict descendants and excludes the receiver itself. Presented initialization
 and foreign-root checks apply equally to root and child targets.
 
+AttachHidden(parent, child, targetExpression) admits a detached, unparented child
+with explicit inline display:none into an owned parent, including a presented
+document. The native append therefore adds no layout, drawing or picking surface;
+the child's later Display request still owns its entrance and input lifetime.
+It admits no callback and cannot reparent an existing element or initialize a
+visible subtree. Initialize/Clear/Remove keep their unpublished-scope restriction.
+This supports lazy pools without constructing unused controls or capturing the
+whole parent. The contract follows Unity's IStyle.display semantics:
+https://docs.unity.cn/6000.2/Documentation/ScriptReference/UIElements.IStyle-display.html
+and the no-box effect of display:none:
+https://www.w3.org/TR/css-display-3/#valdef-display-none
+
 ## Coherent content publication
 
 Replace accepts the identity of the complete visible state and its publication

@@ -2,6 +2,14 @@
 
 All notable changes to this package are documented in this file.
 
+## [0.5.13] - 2026-11-06
+
+- Add owned hidden-child attachment for lazy pools in presented documents.
+  Require an unparented, unattached element with explicit inline display:none;
+  preserve ordinary entrance/input ownership and unpublished-only initialization.
+- Cover native layout/picking, later entrance, foreign-parent and existing-child
+  rejection, unchanged initialization checks and resource retirement.
+
 ## [0.5.12] - 2026-11-05
 
 - Add layout-preserving Visibility intent to the existing document region owner.
