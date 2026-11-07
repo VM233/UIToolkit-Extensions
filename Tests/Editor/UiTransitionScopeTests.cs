@@ -19,6 +19,8 @@ namespace VM233.UIElements.Editor.Tests
         private readonly List<UiTransitionFrame> frames = new();
         private EditorWindow previousFocus;
         private ControlledTransitionRenderer renderer;
+        private Func<double> clock;
+        private double controlledSeconds;
 
         [SetUp]
         public void SetUp()
@@ -29,8 +31,9 @@ namespace VM233.UIElements.Editor.Tests
             region = new VisualElement(); region.style.height = 80; region.style.width = 160;
             window.rootVisualElement.Add(region);
             renderer = new ControlledTransitionRenderer();
+            clock = () => EditorApplication.timeSinceStartup;
             scope = new UiTransitionScope(window.rootVisualElement, () => .16f, () => 10,
-                () => EditorApplication.timeSinceStartup, renderer);
+                () => clock(), renderer);
             scope.Observed += frames.Add;
         }
 
@@ -385,12 +388,13 @@ namespace VM233.UIElements.Editor.Tests
             };
             scope.Replace(region, 2, () => content = "second", site);
             yield return Until(() => renderer.CapturePending); renderer.CompleteCapture();
-            yield return Until(() => renderer.RenderPending);
-            Assert.That(content, Is.EqualTo("second")); renderer.CompleteRender();
-            yield return Until(() => renderer.CapturePending);
+            var firstImage = renderer.Image;
+            yield return Until(() => boundary && renderer.CapturePending);
             Assert.That(content, Is.EqualTo("second"));
-            Assert.That(renderer.Image.Disposals, Is.EqualTo(1)); renderer.CompleteCapture();
+            Assert.That(renderer.RenderPending, Is.False);
+            Assert.That(firstImage.Disposals, Is.Zero); renderer.CompleteCapture();
             yield return Until(() => renderer.RenderPending); renderer.CompleteRender();
+            Assert.That(firstImage.Disposals, Is.EqualTo(1));
             yield return Until(() => boundary && content == "boundary" && !scope.Observe()[0].Moving);
             Assert.That(content, Is.EqualTo("boundary"), History());
             Assert.That(region.resolvedStyle.opacity, Is.EqualTo(1).Within(.001), History());
@@ -431,15 +435,220 @@ namespace VM233.UIElements.Editor.Tests
                 scope.Replace(sibling, 2, () => second = "new", site);
             }, site);
             yield return Until(() => renderer.CapturePending); renderer.CompleteCapture();
-            yield return Until(() => renderer.RenderPending);
+            var firstImage = renderer.Image;
+            yield return Until(() => first == "new" && renderer.CapturePending);
             Assert.That(first, Is.EqualTo("new"));
             Assert.That(second, Is.EqualTo("old"), "A sibling outside this captured group published immediately.");
-            renderer.CompleteRender();
-            yield return Until(() => renderer.CapturePending);
+            Assert.That(firstImage.Disposals, Is.Zero);
             Assert.That(second, Is.EqualTo("old")); renderer.CompleteCapture();
             yield return Until(() => renderer.RenderPending); renderer.CompleteRender();
             yield return Until(() => !scope.Observe().Any(frame => frame.Moving));
             Assert.That(second, Is.EqualTo("new"));
+            Assert.That(firstImage.Disposals, Is.EqualTo(1));
+        }
+
+        [UnityTest]
+        public IEnumerator ContentRedirectionFreezesItsCompositeBeforeCapturingTheSuccessor()
+        {
+            int content = 0;
+            yield return BeginControlledReplacement(value => content = value);
+            var original = renderer.Image; float opacity = original.Opacity; int start = frames.Count;
+            scope.Replace(region, 3, () => content = 3, site);
+            Assert.That(renderer.CapturePending, Is.True);
+            Assert.That(original.Disposals, Is.Zero);
+            yield return null;
+            Assert.That(original.Opacity, Is.EqualTo(opacity));
+            Assert.That(content, Is.EqualTo(2));
+            renderer.CompleteCapture();
+            yield return FinishControlledReplacement();
+            Assert.That(content, Is.EqualTo(3));
+            Assert.That(original.Disposals, Is.EqualTo(1));
+            Assert.That(renderer.Image.Disposals, Is.EqualTo(1));
+            Assert.That(frames.Skip(start).Any(frame => frame.Phase == UiTransitionPhase.Replacing &&
+                frame.SourceCaptureFrame == original.CapturedFrame && frame.Opacity == 1), Is.False);
+        }
+
+        [UnityTest]
+        public IEnumerator ContentRedirectionCancelsTheExactTargetWaitAndRetainsItsOpaqueSource()
+        {
+            controlledSeconds = 0; clock = () => controlledSeconds;
+            yield return null; scope.Publish();
+            int content = 1;
+            scope.Replace(region, 1, () => content = 1, site);
+            scope.Replace(region, 2, () => content = 2, site);
+            yield return Until(() => renderer.CapturePending); renderer.CompleteCapture();
+            yield return Until(() => renderer.RenderPending);
+            var wait = renderer.RenderTask; var original = renderer.Image;
+            scope.Replace(region, 3, () => content = 3, site);
+            Assert.That(wait.IsCanceled, Is.True);
+            Assert.That(renderer.CapturePending, Is.True);
+            Assert.That(original.Disposals, Is.Zero);
+            Assert.That(original.Opacity, Is.EqualTo(1));
+            Assert.That(content, Is.EqualTo(2));
+            renderer.CompleteCapture(); yield return FinishControlledReplacement();
+            Assert.That(content, Is.EqualTo(3));
+            Assert.That(original.Disposals, Is.EqualTo(1));
+        }
+
+        [UnityTest]
+        public IEnumerator ContentRedirectionCoalescesAndReselectingThePublishedTargetKeepsTheComposite()
+        {
+            int content = 0, obsolete = 0;
+            yield return BeginControlledReplacement(value => content = value);
+            var original = renderer.Image; float opacity = original.Opacity;
+            scope.Replace(region, 3, () => obsolete++, site);
+            var wait = renderer.CaptureTask;
+            scope.Replace(region, 4, () => obsolete++, site);
+            scope.Replace(region, 2, () => content = 2, site);
+            Assert.That(renderer.CaptureTask, Is.SameAs(wait));
+            Assert.That(wait.IsCompleted, Is.False);
+            Assert.That(original.Opacity, Is.EqualTo(opacity));
+            Assert.That(original.Disposals, Is.Zero);
+            renderer.CompleteCapture(); yield return FinishControlledReplacement();
+            Assert.That(content, Is.EqualTo(2)); Assert.That(obsolete, Is.Zero);
+            Assert.That(original.Disposals, Is.EqualTo(1));
+        }
+
+        [UnityTest]
+        public IEnumerator ContentRedirectionPreservesTheActualImageRectangleAfterLiveGeometryChanges()
+        {
+            yield return BeginControlledReplacement(_ => { });
+            var original = renderer.Image;
+            scope.Replace(region, 3, () => { }, site);
+            region.style.width = 40; region.style.height = 20;
+            yield return null;
+            Assert.That(region.worldBound.width, Is.LessThan(original.Bounds.width));
+            renderer.CompleteCapture();
+            var captured = renderer.Image.Bounds;
+            Assert.That(captured.xMin, Is.LessThanOrEqualTo(original.Bounds.xMin));
+            Assert.That(captured.yMin, Is.LessThanOrEqualTo(original.Bounds.yMin));
+            Assert.That(captured.xMax, Is.GreaterThanOrEqualTo(original.Bounds.xMax));
+            Assert.That(captured.yMax, Is.GreaterThanOrEqualTo(original.Bounds.yMax));
+            yield return FinishControlledReplacement();
+        }
+
+        [UnityTest]
+        public IEnumerator PendingAncestorMayReplaceItsFrozenDescendantWithoutAbortingTheNewImage()
+        {
+            controlledSeconds = 0; clock = () => controlledSeconds;
+            var child = new VisualElement(); child.style.width = 80; child.style.height = 40; region.Add(child);
+            yield return null; scope.Publish();
+            scope.Replace(region, 1, () => { }, site); scope.Replace(child, 1, () => { }, site);
+            scope.Replace(child, 2, () => { }, site);
+            yield return Until(() => renderer.CapturePending); renderer.CompleteCapture();
+            yield return Until(() => renderer.RenderPending); renderer.CompleteRender();
+            yield return Until(() => scope.Observe().Any(frame => frame.Phase == UiTransitionPhase.Replacing));
+            controlledSeconds = .08;
+            yield return Until(() => scope.Observe().Any(frame => frame.Phase == UiTransitionPhase.Replacing && frame.Opacity is > 0 and < 1));
+            var original = renderer.Image;
+            scope.Replace(region, 2, region.Clear, site);
+            renderer.CompleteCapture();
+            yield return FinishControlledReplacement();
+            Assert.That(child.parent, Is.Null);
+            Assert.That(scope.RegionCount, Is.EqualTo(1));
+            Assert.That(original.Disposals, Is.EqualTo(1));
+            Assert.That(renderer.Image.Disposals, Is.EqualTo(1));
+        }
+
+        [UnityTest]
+        public IEnumerator ContentRedirectionCarriesItsAlreadyPublishedSiblingThroughTheNewFade()
+        {
+            controlledSeconds = 0; clock = () => controlledSeconds;
+            var sibling = new VisualElement(); sibling.style.width = 160; sibling.style.height = 80;
+            window.rootVisualElement.Add(sibling);
+            yield return null; scope.Publish();
+            int siblingPublications = 0;
+            scope.Replace(region, 1, () => { }, site); scope.Replace(sibling, 1, () => { }, site);
+            scope.Replace(region, 2, () => { }, site); scope.Replace(sibling, 2, () => siblingPublications++, site);
+            yield return Until(() => renderer.CapturePending); renderer.CompleteCapture();
+            yield return Until(() => renderer.RenderPending); renderer.CompleteRender();
+            yield return Until(() => scope.Observe().All(frame => frame.Phase == UiTransitionPhase.Replacing));
+            controlledSeconds = .08;
+            yield return Until(() => scope.Observe().All(frame => frame.Phase == UiTransitionPhase.Replacing && frame.Opacity is > 0 and < 1));
+            scope.Replace(region, 3, () => { }, site); renderer.CompleteCapture();
+            yield return Until(() => renderer.RenderPending);
+            Assert.That(scope.Observe().All(frame => frame.SourceCaptureFrame == renderer.Image.CapturedFrame && frame.Moving), Is.True);
+            Assert.That(siblingPublications, Is.EqualTo(1));
+            renderer.CompleteRender();
+            yield return Until(() => scope.Observe().All(frame => frame.Phase == UiTransitionPhase.Replacing));
+            controlledSeconds += 1;
+            yield return Until(() => scope.Observe().All(frame => !frame.Moving));
+            Assert.That(siblingPublications, Is.EqualTo(1));
+        }
+
+        [UnityTest]
+        public IEnumerator ContentRedirectionRetirementCancelsItsNewCaptureAndDisposesItsFrozenImage()
+        {
+            yield return BeginControlledReplacement(_ => { });
+            var original = renderer.Image;
+            scope.Replace(region, 3, () => Assert.Fail("Retired successor published."), site);
+            var wait = renderer.CaptureTask;
+            scope.Retire();
+            Assert.That(wait.IsCanceled, Is.True);
+            Assert.That(original.Disposals, Is.EqualTo(1));
+            Assert.That(scope.PendingFrameWait, Is.Null);
+            Assert.That(scope.HasRetainedImage, Is.False);
+            Assert.That(scope.RegionCount, Is.Zero);
+        }
+
+        [UnityTest]
+        public IEnumerator SameOwnerPublicationReentryQueuesItsLatestIntentInsteadOfOverwritingTheAdmittedAction()
+        {
+            controlledSeconds = 0; clock = () => controlledSeconds;
+            yield return null; scope.Publish();
+            int content = 1, second = 0, third = 0; bool requested = false;
+            scope.Replace(region, 1, () => content = 1, site);
+            scope.Observed += frame =>
+            {
+                if (requested || frame.Phase != UiTransitionPhase.PublishingReplacement) return;
+                requested = true;
+                scope.Replace(region, 3, () => { content = 3; third++; }, site);
+                Assert.That(content, Is.EqualTo(1));
+            };
+            scope.Replace(region, 2, () => { content = 2; second++; }, site);
+            yield return Until(() => renderer.CapturePending); renderer.CompleteCapture();
+            yield return Until(() => requested && renderer.CapturePending);
+            Assert.That(content, Is.EqualTo(2)); Assert.That(second, Is.EqualTo(1)); Assert.That(third, Is.Zero);
+            Assert.That(renderer.Image.Disposals, Is.Zero);
+            renderer.CompleteCapture(); yield return FinishControlledReplacement();
+            Assert.That(content, Is.EqualTo(3)); Assert.That(second, Is.EqualTo(1)); Assert.That(third, Is.EqualTo(1));
+        }
+
+        private IEnumerator BeginControlledReplacement(Action<int> publish)
+        {
+            controlledSeconds = 0; clock = () => controlledSeconds;
+            yield return null; scope.Publish();
+            scope.Replace(region, 1, () => publish(1), site); scope.Replace(region, 2, () => publish(2), site);
+            yield return Until(() => renderer.CapturePending); renderer.CompleteCapture();
+            yield return Until(() => renderer.RenderPending); renderer.CompleteRender();
+            yield return Until(() => scope.Observe()[0].Phase == UiTransitionPhase.Replacing);
+            controlledSeconds = .08;
+            yield return Until(() => scope.Observe()[0].Phase == UiTransitionPhase.Replacing && scope.Observe()[0].Opacity is > 0 and < 1);
+        }
+
+        [UnityTest]
+        public IEnumerator AnAdmittedPublicationStillOwnsItsSameRegionDisplayProjection()
+        {
+            yield return null; scope.Publish();
+            scope.Replace(region, 1, () => { }, site);
+            scope.Replace(region, 2, () =>
+            {
+                scope.Display(region, DisplayStyle.None, site);
+                Assert.That(region.style.display.value, Is.EqualTo(DisplayStyle.None));
+            }, site);
+            yield return Until(() => renderer.CapturePending); renderer.CompleteCapture();
+            yield return Until(() => renderer.RenderPending); renderer.CompleteRender();
+            yield return Until(() => !scope.HasRetainedImage);
+            Assert.That(region.style.display.value, Is.EqualTo(DisplayStyle.None));
+        }
+
+        private IEnumerator FinishControlledReplacement()
+        {
+            yield return Until(() => renderer.RenderPending); renderer.CompleteRender();
+            yield return Until(() => scope.Observe().Any(frame => frame.Phase == UiTransitionPhase.Replacing));
+            controlledSeconds += 1;
+            yield return Until(() => !scope.Observe().Any(frame => frame.Moving));
+            Assert.That(scope.HasRetainedImage, Is.False);
         }
 
         [UnityTest]
@@ -596,7 +805,8 @@ namespace VM233.UIElements.Editor.Tests
         private IEnumerator Until(Func<bool> completed)
         {
             double deadline = EditorApplication.timeSinceStartup + 2;
-            while (!completed() && EditorApplication.timeSinceStartup < deadline) yield return null;
+            int remainingFrames = 256;
+            while (!completed() && EditorApplication.timeSinceStartup < deadline && remainingFrames-- > 0) yield return null;
             Assert.That(completed(), Is.True, History());
             yield return null;
         }

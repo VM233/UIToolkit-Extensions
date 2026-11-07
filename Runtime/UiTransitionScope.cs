@@ -68,12 +68,12 @@ namespace VM233.UIElements
 
         public void Display(VisualElement element, DisplayStyle display, UiTransitionSite site)
         {
-            Region(element).Request(display, site, Presented && AncestorsPresented(element));
+            Region(element).Request(display, site, Presented && !content.Publishes(element) && AncestorsPresented(element));
         }
 
         public void Visibility(VisualElement element, StyleEnum<Visibility> visibility, UiTransitionSite site)
         {
-            Region(element).RequestVisibility(visibility, site, Presented && AncestorsPresented(element));
+            Region(element).RequestVisibility(visibility, site, Presented && !content.Publishes(element) && AncestorsPresented(element));
         }
 
         public void Initialize(VisualElement element, Action initialize)
@@ -136,13 +136,12 @@ namespace VM233.UIElements
         {
             if (ReferenceEquals(element, root)) throw new ArgumentException("Local replacement must be inside its retained document host.");
             Region(element).Replace(identity, publish, site,
-                Presented && AncestorsPresented(element) && Region(element).RequestedVisible &&
+                Presented && !content.PublishesAncestor(element) && AncestorsPresented(element) && Region(element).RequestedVisible &&
                 element.resolvedStyle.display != DisplayStyle.None && element.resolvedStyle.visibility == UnityEngine.UIElements.Visibility.Visible && element.resolvedStyle.opacity > 0);
         }
 
         private bool AncestorsPresented(VisualElement element)
         {
-            if (content.Publishes(element)) return false;
             for (var ancestor = element.parent; ancestor != null; ancestor = ancestor.parent)
             {
                 if (regions.TryGetValue(ancestor, out var region) && region.Requested == DisplayStyle.None) return false;

@@ -36,7 +36,7 @@ namespace VM233.UIElements.Editor.Tests
             var bounds = captureBounds();
             if (bounds.width <= 0 || bounds.height <= 0) throw new InvalidOperationException("The controlled source bounds are empty.");
             captureCancellation.Dispose();
-            Image = new ControlledImage(Time.frameCount);
+            Image = new ControlledImage(Time.frameCount, bounds);
             capture.SetResult(Image);
         }
 
@@ -62,7 +62,8 @@ namespace VM233.UIElements.Editor.Tests
             internal float Opacity { get; private set; } = 1;
             public bool ContainsSourcePixels => Disposals == 0;
             public int CapturedFrame { get; }
-            internal ControlledImage(int frame) => CapturedFrame = frame;
+            internal Rect Bounds { get; }
+            internal ControlledImage(int frame, Rect bounds) { CapturedFrame = frame; Bounds = bounds; }
             public void SetSourceOpacity(float opacity) => Opacity = opacity;
             public void Dispose() => Disposals++;
         }

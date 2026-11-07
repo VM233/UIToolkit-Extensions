@@ -65,18 +65,26 @@ waits for a real rendered target layout, and crossfades that image over the live
 target for one complete configured duration. There is no empty outgoing interval.
 Keep related titles, content and actions inside the same region and callback.
 Same-identity live values can update immediately. Returning to the published
-identity before capture cancels the unpublished replacement.
+identity before an initial capture cancels the unpublished replacement.
 
 One document batches pending regions into one image. CaptureBounds is evaluated
 by the renderer at actual capture time, selects outermost pending regions and
 unions their old rectangles. A parent's callback must publish its complete
-subtree; pending descendant callbacks are subsumed by that owner. Requests after
-publication wait for a new capture after the active image retires. Publication
-actions are latched before observers run, so new requests cannot overwrite the
-admitted action.
+subtree; pending descendant callbacks are subsumed by that owner. A new intent
+during the crossfade immediately freezes its last displayed image opacity and
+captures that visible composite. It cancels and joins the previous target-frame
+wait when that wait is still incomplete. The frozen image stays attached until
+the new opaque image is attached; it cannot complete to an obsolete destination
+first. The next capture includes the previous image's actual rectangle even if
+the live region has moved or shrunk. Already-published siblings share the new
+fade without rerunning their callbacks. Further requests coalesce into that
+capture; returning to its published identity still fades from the frozen image.
+Publication actions are latched before observers run, so same-owner reentry
+queues its latest intent without overwriting the admitted action.
 
-Only the active publication subtrees suppress nested animation. A sibling outside
-their captured bounds queues a distinct capture; a document-wide publishing flag
+Only strict descendants of an active content publication suppress nested Replace
+animation. Its Display/Visibility projections also belong to that publication.
+A sibling outside their captured bounds queues a distinct capture; a document-wide publishing flag
 cannot authorize it to jump. Each synchronous observer and publication callback
 returns to the same admitted batch lifetime. If that callback retires the document
 or removes its region, the consumed batch cannot publish another action or start
@@ -103,6 +111,11 @@ owned resources and regions even if an observer fails, then reports all errors.
 
 This rendering model follows the separation of captured old pixels and live new
 content in [W3C View Transitions](https://www.w3.org/TR/css-view-transitions-1/#rendering-model).
+The current-value interruption principle follows
+[CSS Transitions](https://www.w3.org/TR/css-transitions-1/#starting); capturing
+the frozen raster composite is this package's application of that principle,
+not an implementation of the browser View Transition API. It keeps the supplied
+duration and presentation clock.
 The previous sequential half-duration content fade was rejected by natural game
 frames: a frame interval could skip a half segment and expose incoherent/blank
 content. Increasing durations is not its replacement.
@@ -124,11 +137,15 @@ is incomplete, cause actual root retirement, and check that same Task's canceled
 completion. Sampling a phase later at recorder cadence cannot prove this path.
 
 Static bounds:4096 regions per scope, one commit/animation schedule per region,
-one content schedule and one retained image per batch. Source selection performs
+one content schedule and one retained image, with two images transiently live
+only while a successor capture is adopted. Source selection performs
 at most4096 ×64 ancestor lookups and4096 rectangle unions. Capture/publication/
 retirement arrays and sets each hold at most4096 regions. Input settlement is
 bounded by Unity's pointer domain. Observe allocates one bounded snapshot.
-The per-batch publication-root set holds at most4096 elements and is rebuilt and
+Pending/carried region selection uses one union set of at most4096 distinct
+regions. Retained bounds and the immutable source selection belong to that
+capture and are discarded with its operation. The per-batch publication-root
+set holds at most4096 elements and is rebuilt and
 cleared with that batch. Nested request classification reads at most64 ancestors;
 it does not scan every active region or allocate per frame.
 The integrating renderer separately owns screen dimensions, GPU memory and
@@ -136,7 +153,10 @@ capture costs; no CPU image readback is required by this API. Root publication
 and source/host inventory belong to the integrating framework/project.
 
 Native Editor fixtures verify visibility/reversal and the resource/publication
-protocol using a controlled renderer. They do not claim screenshot quality.
+protocol using a controlled renderer. Deterministic content interruption cases
+use the scope's injected test clock; existing visibility cases use the Editor
+clock. The fixture retains its two-second wait and caps it at256 native steps.
+These tests do not claim screenshot quality.
 The game must prove actual frame-end capture/cancellation, coherent intermediate
 pixels, input, root replacement, languages and viewports through its production
 controls.

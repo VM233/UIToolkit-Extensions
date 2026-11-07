@@ -2,6 +2,16 @@
 
 All notable changes to this package are documented in this file.
 
+## [0.5.14] - 2026-11-07
+
+- Redirect active content from its frozen visible composite. Cancel its exact
+  previous frame wait and retain the image until a successor capture is attached.
+- Preserve captured bounds and already-published siblings, coalesce repeated
+  targets and published-identity reselection, and latch actions before reentry.
+  Keep nested content and same-region display projection ownership distinct.
+- Cover interruption, geometry, ancestor/sibling, reentry and retirement in the
+  controlled-renderer fixture. Actual pixels remain the integrating game's gate.
+
 ## [0.5.13] - 2026-11-06
 
 - Add owned hidden-child attachment for lazy pools in presented documents.

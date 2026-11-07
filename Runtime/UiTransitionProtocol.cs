@@ -39,6 +39,12 @@ namespace VM233.UIElements
             throw new InvalidOperationException($"UI visibility cannot advance from {from} to {to}.");
         }
 
+        internal static void RequireContent(UiTransitionPhase from, UiTransitionPhase to)
+        {
+            foreach (var arc in Content) if (arc.From == from && arc.To == to) return;
+            throw new InvalidOperationException($"UI content cannot advance from {from} to {to}.");
+        }
+
         private static IReadOnlyList<UiTransitionArc> ContentArcs()
         {
             var arcs = new List<UiTransitionArc>();
@@ -46,6 +52,8 @@ namespace VM233.UIElements
             {
                 var phase = content[i];
                 arcs.Add(new UiTransitionArc(phase, content[(i + 1) % content.Length]));
+                if (phase is UiTransitionPhase.Replacing or UiTransitionPhase.WaitingReplacementLayout)
+                    arcs.Add(new UiTransitionArc(phase, UiTransitionPhase.CapturingReplacement));
                 if (phase != UiTransitionPhase.Shown && phase != UiTransitionPhase.Replacing)
                     arcs.Add(new UiTransitionArc(phase, UiTransitionPhase.Shown));
                 arcs.Add(new UiTransitionArc(phase, UiTransitionPhase.Retired));
