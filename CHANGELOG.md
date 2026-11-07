@@ -2,6 +2,13 @@
 
 All notable changes to this package are documented in this file.
 
+## [0.5.15] - 2026-11-07
+
+- Qualify controlled content redirection by actual source-image identity and its
+  post-settlement frozen opacity. Edit Mode controlled captures can share a game
+  frame counter; that counter is not a unique resource identifier.
+- Keep runtime source and all native game-frame/pixel acceptance unchanged.
+
 ## [0.5.14] - 2026-11-07
 
 - Redirect active content from its frozen visible composite. Cancel its exact

@@ -452,7 +452,7 @@ namespace VM233.UIElements.Editor.Tests
         {
             int content = 0;
             yield return BeginControlledReplacement(value => content = value);
-            var original = renderer.Image; float opacity = original.Opacity; int start = frames.Count;
+            var original = renderer.Image; float opacity = original.Opacity;
             scope.Replace(region, 3, () => content = 3, site);
             Assert.That(renderer.CapturePending, Is.True);
             Assert.That(original.Disposals, Is.Zero);
@@ -460,12 +460,12 @@ namespace VM233.UIElements.Editor.Tests
             Assert.That(original.Opacity, Is.EqualTo(opacity));
             Assert.That(content, Is.EqualTo(2));
             renderer.CompleteCapture();
+            Assert.That(renderer.Image, Is.Not.SameAs(original));
             yield return FinishControlledReplacement();
             Assert.That(content, Is.EqualTo(3));
             Assert.That(original.Disposals, Is.EqualTo(1));
             Assert.That(renderer.Image.Disposals, Is.EqualTo(1));
-            Assert.That(frames.Skip(start).Any(frame => frame.Phase == UiTransitionPhase.Replacing &&
-                frame.SourceCaptureFrame == original.CapturedFrame && frame.Opacity == 1), Is.False);
+            Assert.That(original.Opacity, Is.EqualTo(opacity), "The obsolete source must stay frozen through successor settlement.");
         }
 
         [UnityTest]

@@ -157,6 +157,10 @@ protocol using a controlled renderer. Deterministic content interruption cases
 use the scope's injected test clock; existing visibility cases use the Editor
 clock. The fixture retains its two-second wait and caps it at256 native steps.
 These tests do not claim screenshot quality.
+Controlled capture completion does not guarantee distinct game-frame counters
+in Edit Mode. Resource continuity assertions use the actual image reference and
+its retained opacity/disposal state; native game evidence still uses real frame
+and pixel associations.
 The game must prove actual frame-end capture/cancellation, coherent intermediate
 pixels, input, root replacement, languages and viewports through its production
 controls.
