@@ -2,6 +2,14 @@
 
 All notable changes to this package are documented in this file.
 
+## [0.5.16] - 2026-11-10
+
+- Let an explicitly declared input region retain its immediate manipulation
+  events inside its actual transitioning ancestor. Ordinary controls and clicks
+  remain under the existing region input barrier.
+- Keep the input decision with the consumer's real gesture owner; validate the
+  complete target ancestry and reject unrelated/foreign regions.
+
 ## [0.5.15] - 2026-11-07
 
 - Qualify controlled content redirection by actual source-image identity and its

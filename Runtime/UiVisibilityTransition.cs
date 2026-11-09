@@ -225,7 +225,10 @@ namespace VM233.UIElements
         }
 
         private void Block<T>(T evt) where T : EventBase<T>, new()
-        { if (segment != null || pendingContent != null || contentPhase != null || !RequestedVisible) evt.StopImmediatePropagation(); }
+        {
+            if ((segment != null || pendingContent != null || contentPhase != null || !RequestedVisible) &&
+                !UiPresentation.PreservesInput(element, evt)) evt.StopImmediatePropagation();
+        }
 
         private void RegisterInput(bool register)
         {

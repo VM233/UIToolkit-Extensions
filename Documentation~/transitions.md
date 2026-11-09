@@ -1,5 +1,12 @@
 # Retained UI transitions
 
+An `IUiTransitionInputRegion` may preserve specific immediate manipulation
+events through its actual transitioning ancestors. The consumer declares its
+real pointer/wheel events; ordinary controls and activation clicks remain
+blocked. `UiPresentation.PreservesInput` validates the complete target ancestry,
+so an unrelated region cannot bypass another transition. Gesture state,
+capture, cancellation and current-pose retargeting stay with that input owner.
+
 `UiTransitionScope` owns one real document root. An `IUiTransitionHost` exposes
 it to `UiPresentation.Display`, `Visibility` and `Replace`. Supply the presentation clock,
 duration, distance and an `IUiTransitionRenderer`; call Publish after the actual

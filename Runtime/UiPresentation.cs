@@ -7,6 +7,17 @@ namespace VM233.UIElements
 {
     public static class UiPresentation
     {
+        public static bool PreservesInput(VisualElement transition, EventBase input)
+        {
+            bool accepted = false; int depth = 0;
+            for (var current = input.target as VisualElement; current != null; current = current.parent)
+            {
+                if (++depth > 64) throw new InvalidOperationException("Immediate transition input exceeds64 ancestor links.");
+                if (current is IUiTransitionInputRegion region && region.AcceptsTransitionInput(input)) accepted = true;
+                if (ReferenceEquals(current, transition)) return accepted;
+            }
+            return false;
+        }
         public static void Initialize(VisualElement element, Action initialize, string targetExpression,
             [CallerFilePath] string file = "", [CallerMemberName] string member = "", [CallerLineNumber] int line = 0)
         {
