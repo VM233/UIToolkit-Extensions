@@ -17,8 +17,8 @@ namespace VM233.UIElements
         private DisplayStyle rendered;
         private StyleEnum<Visibility> requestedVisibility, renderedVisibility, segmentVisibility;
         private DisplayStyle segmentDisplay;
-        private UiTransitionSegment segment;
-        private float opacity;
+        private UiVisibilitySegment segment;
+        private float opacity, translation;
         private bool contentInitialized, ownsStyles, retired;
         private object publishedIdentity, requestedIdentity;
         private Action pendingContent;
@@ -145,7 +145,8 @@ namespace VM233.UIElements
         {
             var current = segment;
             if (current == null) return;
-            double now = clock(); opacity = current.Sample(now); Apply(current.Destination);
+            double now = clock(); opacity = current.SampleOpacity(now);
+            translation = current.SampleTranslation(now); Apply();
             if (!current.Complete(now)) return;
             segment = null; animation.Pause();
             Settle(segmentDisplay, segmentVisibility);
@@ -170,8 +171,10 @@ namespace VM233.UIElements
                 (RenderedVisible ? UiTransitionPhase.Shown : UiTransitionPhase.Hidden), phase);
             if (!float.IsFinite(duration) || duration <= 0 || !float.IsFinite(distance()) || distance() < 0)
                 throw new InvalidOperationException("UI region motion requires a finite positive duration and nonnegative distance.");
+            if (!ownsStyles) translation = phase == UiTransitionPhase.Entering ? distance() : 0;
             AcquireStyles(); activeSite = source;
-            segment = new UiTransitionSegment(phase, opacity, destination, clock(), duration);
+            segment = new UiVisibilitySegment(phase, opacity, destination, translation,
+                destination == 0 ? -distance() : 0, clock(), duration);
             segmentDisplay = Requested; segmentVisibility = requestedVisibility;
             intermediateFrames = 0; lastIntermediateFrame = -1;
             SettleInput();
@@ -180,7 +183,7 @@ namespace VM233.UIElements
                 rendered = Requested; renderedVisibility = requestedVisibility;
                 element.style.display = rendered; element.style.visibility = renderedVisibility;
             }
-            Apply(destination); animation.Resume();
+            Apply(); animation.Resume();
         }
 
         private void Settle(DisplayStyle display, StyleEnum<Visibility> visibility)
@@ -198,13 +201,12 @@ namespace VM233.UIElements
             authoredOpacity = element.resolvedStyle.opacity; authoredTranslate = element.resolvedStyle.translate;
         }
 
-        private void Apply(float destination)
+        private void Apply()
         {
             element.style.opacity = authoredOpacity * opacity;
-            float offset = distance() * (1 - opacity) * (destination == 0 ? -1 : 1);
             float baseY = authoredTranslate.y.unit == LengthUnit.Percent
                 ? authoredTranslate.y.value * element.layout.height / 100 : authoredTranslate.y.value;
-            element.style.translate = new Translate(authoredTranslate.x, baseY + offset, authoredTranslate.z);
+            element.style.translate = new Translate(authoredTranslate.x, baseY + translation, authoredTranslate.z);
         }
 
         private void RestoreStyles()

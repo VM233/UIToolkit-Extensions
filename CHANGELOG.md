@@ -2,6 +2,14 @@
 
 All notable changes to this package are documented in this file.
 
+## [0.5.17] - 2026-11-14
+
+- Preserve the current translation as well as opacity when a visibility motion
+  reverses. Both properties use one clock and easing segment, without switching
+  the visible offset to the other side of its authored position.
+- Cover intermediate and repeated reversals with a pure trajectory fixture;
+  native consumer input, rendered frames and retirement remain integration gates.
+
 ## [0.5.16] - 2026-11-10
 
 - Let an explicitly declared input region retain its immediate manipulation

@@ -22,7 +22,9 @@ The caller reads `RequestedDisplay`, since the outgoing element can still be
 rendered. Existing pointer capture/focus is released in that region; pointer,
 keyboard and navigation input cannot activate old content while it retires.
 Repeated requests do not restart an unchanged transition. Reversals continue
-from the current displayed opacity and release appearance overrides at completion.
+from the current opacity and translation, using one segment clock and easing.
+Changing direction does not change the current offset's sign. Appearance
+overrides release at completion; hidden terminal geometry is never painted.
 
 Visibility uses the same region and animation as Display, and retains layout at
 its hidden terminal state. Both display and visibility intents must admit drawing.

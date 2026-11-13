@@ -15,10 +15,16 @@ namespace VM233.UIElements
 
         internal float Sample(double now)
         {
+            float progress = Progress(now);
+            return progress >= 1 ? Destination : Origin + (Destination - Origin) * progress;
+        }
+
+        internal float Progress(double now)
+        {
             float fraction = (float)((now - Started) / Duration);
-            if (fraction >= 1) return Destination;
+            if (fraction >= 1) return 1;
             float remaining = 1 - fraction;
-            return Origin + (Destination - Origin) * (1 - remaining * remaining * remaining);
+            return 1 - remaining * remaining * remaining;
         }
 
         internal bool Complete(double now) => now - Started >= Duration;
