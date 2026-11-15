@@ -2,6 +2,15 @@
 
 All notable changes to this package are documented in this file.
 
+## [0.5.20] - 2026-11-15
+
+- Evaluate source area only for an actual changed-content replacement after
+  first publication and same-identity refresh. A new element's native pre-layout
+  NaN size has no old image; coalesce its logical content before first painting.
+- Keep retained interruption images and reject infinite/negative source geometry.
+- Cover first, same and changed identity before a child's layout, followed by
+  genuine later source capture and retirement.
+
 ## [0.5.19] - 2026-11-15
 
 - Publish a finite zero-area old region without asking

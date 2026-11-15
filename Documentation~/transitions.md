@@ -49,8 +49,9 @@ Do not mistake retained element existence for visible outgoing pixels.
 A finite region with zero source area
 has no old image to retain. Its content publishes immediately; actual appearance
 and occupied-height owners still animate the newly admitted view. A later
-nonempty replacement uses normal source capture. Incomplete/nonfinite geometry
-is an admission error. Existing retained pixels remain part of interruption even
+nonempty replacement uses normal source capture. Initial/same-identity publication
+does not inspect old source geometry. Unity's pre-layout NaN rectangle has no old
+image; infinite/negative geometry is an admission error. Existing retained pixels remain part of interruption even
 when the live target has collapsed. Source eligibility reads one native rectangle
 once per request and creates no additional resource or schedule. Native clipping
 and actual source pixels remain the renderer and integrating view's contract.

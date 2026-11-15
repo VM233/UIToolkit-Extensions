@@ -94,12 +94,28 @@ namespace VM233.UIElements
             if (Equals(publishedIdentity, identity)) { pendingContent = null; publish(); }
             else
             {
+                if (!contentPixels && !HasSourceArea())
+                {
+                    publishedIdentity = identity; pendingContent = null;
+                    contentRequested(this); publish(); return;
+                }
                 bool begins = pendingContent == null && contentPhase == null;
                 pendingContent = publish;
                 if (contentPhase == null) contentProgress = 0;
                 if (begins) SettleInput();
             }
             contentRequested(this);
+        }
+
+        private bool HasSourceArea()
+        {
+            Rect area = element.worldBound;
+            if (float.IsInfinity(area.x) || float.IsInfinity(area.y) || float.IsInfinity(area.width) ||
+                float.IsInfinity(area.height) || area.width < 0 || area.height < 0)
+                throw new InvalidOperationException("Content source geometry cannot be infinite or negative.");
+            // Unity returns NaN until this element's first native layout. It has
+            // no old pixels yet, just as a finite zero-area source has none.
+            return float.IsFinite(area.x) && float.IsFinite(area.y) && area.width > 0 && area.height > 0;
         }
 
         internal void CancelPendingContent() => pendingContent = null;

@@ -319,6 +319,27 @@ namespace VM233.UIElements.Editor.Tests
         }
 
         [UnityTest]
+        public IEnumerator NewUnlaidOutContentCoalescesBeforeItsFirstNativeSource()
+        {
+            yield return null; scope.Publish();
+            var child = new VisualElement(); child.style.width = 160; child.style.height = 80;
+            scope.Replace(region, 1, () => region.Add(child), site);
+            int published = 0;
+            scope.Replace(child, 1, () => published = 1, site);
+            scope.Replace(child, 1, () => published = 1, site);
+            scope.Replace(child, 2, () => published = 2, site);
+            Assert.That(published, Is.EqualTo(2));
+            Assert.That(renderer.CapturePending, Is.False);
+            yield return null;
+            scope.Replace(child, 3, () => published = 3, site);
+            yield return Until(() => renderer.CapturePending); renderer.CompleteCapture();
+            yield return Until(() => renderer.RenderPending); renderer.CompleteRender();
+            yield return Until(() => !scope.HasRetainedImage);
+            Assert.That(published, Is.EqualTo(3));
+            Assert.That(renderer.Image.Disposals, Is.EqualTo(1));
+        }
+
+        [UnityTest]
         public IEnumerator EmptySourcePublishesBeforeLaterRealCapture()
         {
             region.style.height = 0;
