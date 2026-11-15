@@ -87,6 +87,47 @@ namespace VM233.UIElements.Editor.Tests
             Assert.That(sibling.layout.y, Is.LessThan(original));
         }
 
+        [UnityTest]
+        public IEnumerator NativeStylesSurviveCacheInvalidationAndRepeatedLeaseRetirement()
+        {
+            yield return null;
+            Assert.That(region.style.opacity.keyword, Is.EqualTo(StyleKeyword.Null));
+            Assert.That(region.style.translate.keyword, Is.EqualTo(StyleKeyword.Null));
+            RequireNativeAppearance();
+            var cache = typeof(VisualElement).Assembly.GetType("UnityEngine.UIElements.StyleCache", true);
+            var clear = cache.GetMethod("ClearStyleCache", System.Reflection.BindingFlags.Static |
+                System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
+            Assert.That(clear, Is.Not.Null);
+            for (int cycle = 0; cycle < 3; cycle++)
+            {
+                scope.Publish(); scope.Display(region, DisplayStyle.None, site);
+                yield return Until(() => scope.Observe()[0].Phase == UiTransitionPhase.Exiting);
+                clear.Invoke(null, null);
+                scope.Retire();
+                RequireNativeAppearance();
+                Assert.That(region.style.opacity.keyword, Is.EqualTo(StyleKeyword.Null));
+                Assert.That(region.style.translate.keyword, Is.EqualTo(StyleKeyword.Null));
+                scope.Publish(); scope.Display(region, DisplayStyle.Flex, site);
+                yield return Until(() => scope.Observe()[0].Phase == UiTransitionPhase.Shown);
+                RequireNativeAppearance();
+                scope.Display(region, DisplayStyle.None, site);
+                clear.Invoke(null, null);
+                yield return Until(() => scope.Observe()[0].Phase == UiTransitionPhase.Hidden);
+                RequireNativeAppearance();
+                scope.Display(region, DisplayStyle.Flex, site);
+                yield return Until(() => scope.Observe()[0].Phase == UiTransitionPhase.Shown);
+                RequireNativeAppearance();
+                scope.Retire();
+            }
+        }
+
+        private void RequireNativeAppearance()
+        {
+            Assert.That(region.resolvedStyle.opacity, Is.EqualTo(.7f).Within(.001));
+            Assert.That(region.resolvedStyle.translate.x, Is.EqualTo(5).Within(.001));
+            Assert.That(region.resolvedStyle.translate.y, Is.EqualTo(7).Within(.001));
+        }
+
         private Vector2 ReadPadding() => new(region.resolvedStyle.paddingLeft, region.resolvedStyle.paddingTop);
 
         private void RequireAuthoredGeometry(Rect original, Vector2 padding)

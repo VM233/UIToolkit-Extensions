@@ -2,6 +2,14 @@
 
 All notable changes to this package are documented in this file.
 
+## [0.5.18] - 2026-11-15
+
+- Restore the visibility lease's actual authored opacity and translation before
+  releasing its original inline declarations. A Unity 6000.6 matched-style cache
+  miss can otherwise leave the last animation value in the computed style.
+- Cover native cache invalidation, non-unit authored opacity, repeated hide/show
+  and retirement; integrating views still verify rendered pixels and input.
+
 ## [0.5.17] - 2026-11-14
 
 - Preserve the current translation as well as opacity when a visibility motion

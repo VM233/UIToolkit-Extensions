@@ -212,6 +212,10 @@ namespace VM233.UIElements
         private void RestoreStyles()
         {
             if (!ownsStyles) return;
+            // Unity 6000.6 can remove a Null inline declaration without reverting
+            // its computed value after a stylesheet-cache invalidation. Restore
+            // the leased native values before releasing their declarations.
+            element.style.opacity = authoredOpacity; element.style.translate = authoredTranslate;
             element.style.opacity = originalOpacity; element.style.translate = originalTranslate;
             ownsStyles = false;
         }

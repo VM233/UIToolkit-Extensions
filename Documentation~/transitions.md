@@ -33,6 +33,14 @@ ancestor. Synchronous projection requests coalesce; hidden/revealed requests do
 not create competing opacity writers. Positioning owners retain left/top/size;
 the transition exclusively owns temporary opacity/translation overrides.
 
+The visibility lease restores its captured native opacity and translation before
+releasing the original inline declarations, including Null. Unity 6000.6 removes
+an inline entry before consulting its matched-rule cache; a cache miss can leave
+the last animation value computed indefinitely. Restoring the leased values
+keeps stylesheet-authored opacity and transforms intact without retaining an
+inline override or adding a restyle schedule. Native cache-clear fixtures cover
+this boundary; production code uses no internal engine access.
+
 Use Display for an independently layered region. A context change that also
 expands/repositions its neighbors belongs to one coherent Replace owner
 containing that complete layout.
