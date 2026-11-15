@@ -46,6 +46,71 @@ namespace VM233.UIElements.Editor.Tests
         }
 
         [UnityTest]
+        public IEnumerator VisibilityCommitAdmitsTheCoalescedStateInTheCallingTurn()
+        {
+            yield return null; scope.Publish();
+            scope.Display(region, DisplayStyle.None, site);
+            scope.Display(region, DisplayStyle.Flex, site);
+            scope.CommitVisibility(region);
+            Assert.That(scope.Observe().Single().Phase, Is.EqualTo(UiTransitionPhase.Shown));
+            Assert.That(scope.Observe().Single().Moving, Is.False);
+            scope.Display(region, DisplayStyle.None, site);
+            scope.CommitVisibility(region);
+            Assert.That(scope.Observe().Single().Phase, Is.EqualTo(UiTransitionPhase.Exiting));
+            Assert.That(scope.Observe().Single().Opacity, Is.EqualTo(1));
+            yield return Until(() => scope.Observe().Single().Phase == UiTransitionPhase.Hidden);
+        }
+
+        [UnityTest]
+        public IEnumerator VisibilityCommitRetirementCannotAdmitAnotherRetiredTarget()
+        {
+            var other = new VisualElement(); other.style.height = 40; other.style.width = 160;
+            window.rootVisualElement.Add(other);
+            scope.Display(region, DisplayStyle.Flex, site);
+            scope.Display(other, DisplayStyle.Flex, site);
+            yield return null; scope.Publish();
+            scope.Display(region, DisplayStyle.None, site);
+            scope.Display(other, DisplayStyle.None, site);
+            scope.Observed += frame =>
+            {
+                if (ReferenceEquals(frame.Element, region) && frame.Phase == UiTransitionPhase.Exiting) scope.Retire();
+            };
+            scope.CommitVisibility(region, other);
+            Assert.That(scope.Observe(), Is.Empty);
+            Assert.That(frames.Any(frame => ReferenceEquals(frame.Element, other) && frame.Phase == UiTransitionPhase.Exiting), Is.False);
+        }
+
+        [UnityTest]
+        public IEnumerator VisibilityCommitFailureRetiresEveryQueuedTarget()
+        {
+            var other = new VisualElement(); other.style.height = 40; other.style.width = 160;
+            window.rootVisualElement.Add(other);
+            scope.Display(region, DisplayStyle.Flex, site);
+            scope.Display(other, DisplayStyle.Flex, site);
+            yield return null; scope.Publish();
+            scope.Display(region, DisplayStyle.None, site);
+            scope.Display(other, DisplayStyle.None, site);
+            scope.Observed += frame =>
+            {
+                if (ReferenceEquals(frame.Element, region) && frame.Phase == UiTransitionPhase.Exiting)
+                    throw new InvalidOperationException("Expected visibility admission observer failure.");
+            };
+            Assert.Throws<AggregateException>(() => scope.CommitVisibility(region, other));
+            Assert.That(scope.Observe(), Is.Empty);
+            Assert.That(frames.Any(frame => ReferenceEquals(frame.Element, other) && frame.Phase == UiTransitionPhase.Exiting), Is.False);
+        }
+
+        [UnityTest]
+        public IEnumerator VisibilityCommitValidatesEveryTargetBeforeAdmittingAnyRequest()
+        {
+            var unregistered = new VisualElement(); window.rootVisualElement.Add(unregistered);
+            yield return null; scope.Publish();
+            scope.Display(region, DisplayStyle.None, site);
+            Assert.Throws<InvalidOperationException>(() => scope.CommitVisibility(region, unregistered));
+            Assert.That(scope.Observe().Single().Phase, Is.EqualTo(UiTransitionPhase.Shown));
+        }
+
+        [UnityTest]
         public IEnumerator ContentCapturePublishesAtItsHostCompletionWithoutAnotherScheduledTick()
         {
             yield return null; scope.Publish();

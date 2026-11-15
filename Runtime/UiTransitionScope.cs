@@ -76,6 +76,32 @@ namespace VM233.UIElements
             Region(element).RequestVisibility(visibility, site, Presented && !content.Publishes(element) && AncestorsPresented(element));
         }
 
+        public void CommitVisibility(params VisualElement[] elements)
+        {
+            if (elements == null || elements.Length is < 1 or > 4096)
+                throw new ArgumentException("Visibility admission requires1..4096 existing owned targets.");
+            var selected = new List<UiVisibilityTransition>(elements.Length);
+            var unique = new HashSet<UiVisibilityTransition>();
+            foreach (var element in elements)
+            {
+                RequireOwned(element);
+                if (!regions.TryGetValue(element, out var region))
+                    throw new InvalidOperationException("Visibility admission requires an existing transition target.");
+                if (unique.Add(region)) selected.Add(region);
+            }
+            try
+            {
+                foreach (var region in selected)
+                    if (regions.TryGetValue(region.Element, out var current) && ReferenceEquals(current, region))
+                        region.CommitPendingVisibility();
+            }
+            catch (Exception primary)
+            {
+                var retirement = new UiTransitionRetirement(primary);
+                retirement.Attempt(Retire); retirement.ThrowIfFailed();
+            }
+        }
+
         public void Initialize(VisualElement element, Action initialize)
         {
             RequireUnpublishedMutation(element);

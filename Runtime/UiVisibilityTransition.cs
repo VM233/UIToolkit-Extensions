@@ -149,6 +149,12 @@ namespace VM233.UIElements
             SampleSegment(); Reconcile(); observed(Observe());
         }
 
+        internal void CommitPendingVisibility()
+        {
+            if (!commit.isActive) return;
+            commit.Pause(); Commit();
+        }
+
         private void Advance()
         {
             SampleSegment(); Reconcile();

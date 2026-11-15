@@ -2,6 +2,14 @@
 
 All notable changes to this package are documented in this file.
 
+## [0.5.22] - 2026-11-16
+
+- Add explicit same-dispatch visibility admission for a coherent update to
+  existing style-adopted targets, preserving last-request coalescing and duration.
+- Validate every target before admission and preserve exact ownership through
+  observer retirement. Leave native first-style/layout and content-render waits intact.
+- Cover admission, coalescing, all-target validation and retirement on native panels.
+
 ## [0.5.21] - 2026-11-15
 
 - Advance captured-content publication and target-render handoff from their

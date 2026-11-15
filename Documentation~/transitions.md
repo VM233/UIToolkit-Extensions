@@ -26,6 +26,18 @@ from the current opacity and translation, using one segment clock and easing.
 Changing direction does not change the current offset's sign. Appearance
 overrides release at completion; hidden terminal geometry is never painted.
 
+After a complete synchronous update to existing, native-style-adopted targets,
+call `scope.CommitVisibility(first, second)` to admit their coalesced final intents
+in that dispatch. It consumes only their actual queued visibility items, in the
+declared target order. All targets must already belong to the scope's transition
+set; ownership is validated before any admission. Observer retirement cannot
+commit later retired targets. This does not advance the animation clock, shorten
+its duration or force a content-capture/render wait. An admission failure retires
+the complete scope and surfaces the primary/retirement exceptions together.
+Do not use it halfway through
+an update or to bypass first native style/layout adoption for newly created controls.
+Other requests retain their normal scheduled coalescing.
+
 Visibility uses the same region and animation as Display, and retains layout at
 its hidden terminal state. Both display and visibility intents must admit drawing.
 Use StyleKeyword.Null to reveal inherited content without overriding a hidden
@@ -41,9 +53,10 @@ keeps stylesheet-authored opacity and transforms intact without retaining an
 inline override or adding a restyle schedule. Native cache-clear fixtures cover
 this boundary; production code uses no internal engine access.
 
-Use Display for an independently layered region. A context change that also
-expands/repositions its neighbors belongs to one coherent Replace owner
-containing that complete layout.
+Use Display for an independently layered region; one actual bounds owner may
+animate its consequential occupied space and neighbours concurrently. A changed
+content payload that requires retaining old pixels belongs to one coherent
+Replace owner containing that payload's layout.
 Do not mistake retained element existence for visible outgoing pixels.
 
 A finite region with zero source area
