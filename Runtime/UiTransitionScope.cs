@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace VM233.UIElements
@@ -137,7 +138,22 @@ namespace VM233.UIElements
             if (ReferenceEquals(element, root)) throw new ArgumentException("Local replacement must be inside its retained document host.");
             Region(element).Replace(identity, publish, site,
                 Presented && !content.PublishesAncestor(element) && AncestorsPresented(element) && Region(element).RequestedVisible &&
-                element.resolvedStyle.display != DisplayStyle.None && element.resolvedStyle.visibility == UnityEngine.UIElements.Visibility.Visible && element.resolvedStyle.opacity > 0);
+                element.resolvedStyle.display != DisplayStyle.None && element.resolvedStyle.visibility == UnityEngine.UIElements.Visibility.Visible &&
+                element.resolvedStyle.opacity > 0 && (content.HasImage || HasSourceArea(element)));
+        }
+
+        private bool HasSourceArea(VisualElement element)
+        {
+            Rect area = element.worldBound;
+            RequireSourceGeometry(area);
+            return area.width > 0 && area.height > 0;
+        }
+
+        private static void RequireSourceGeometry(Rect area)
+        {
+            if (!float.IsFinite(area.x) || !float.IsFinite(area.y) || !float.IsFinite(area.width) ||
+                !float.IsFinite(area.height) || area.width < 0 || area.height < 0)
+                throw new InvalidOperationException("Content publication requires completed, finite native source geometry.");
         }
 
         private bool AncestorsPresented(VisualElement element)

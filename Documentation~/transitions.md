@@ -46,6 +46,15 @@ expands/repositions its neighbors belongs to one coherent Replace owner
 containing that complete layout.
 Do not mistake retained element existence for visible outgoing pixels.
 
+A finite region with zero source area
+has no old image to retain. Its content publishes immediately; actual appearance
+and occupied-height owners still animate the newly admitted view. A later
+nonempty replacement uses normal source capture. Incomplete/nonfinite geometry
+is an admission error. Existing retained pixels remain part of interruption even
+when the live target has collapsed. Source eligibility reads one native rectangle
+once per request and creates no additional resource or schedule. Native clipping
+and actual source pixels remain the renderer and integrating view's contract.
+
 Clear and Remove are only for initial construction or an actually retired scope.
 They reject mutation while that document is presented, even if a hide request is
 pending. Visible rebuilding uses Replace. UiTransitionProtocol exposes immutable

@@ -319,6 +319,50 @@ namespace VM233.UIElements.Editor.Tests
         }
 
         [UnityTest]
+        public IEnumerator EmptySourcePublishesBeforeLaterRealCapture()
+        {
+            region.style.height = 0;
+            yield return null; scope.Publish();
+            int published = 1;
+            scope.Replace(region, 1, () => published = 1, site);
+            scope.Replace(region, 2, () => { published = 2; region.style.height = 80; }, site);
+            Assert.That(published, Is.EqualTo(2));
+            Assert.That(renderer.CapturePending, Is.False);
+            Assert.That(scope.Observe().Any(frame => frame.Moving), Is.False);
+            yield return null;
+            scope.Replace(region, 3, () => published = 3, site);
+            yield return Until(() => renderer.CapturePending);
+            Assert.That(published, Is.EqualTo(2));
+            renderer.CompleteCapture();
+            yield return Until(() => renderer.RenderPending);
+            Assert.That(published, Is.EqualTo(3));
+            renderer.CompleteRender();
+            yield return Until(() => !scope.HasRetainedImage);
+            Assert.That(renderer.Image.Disposals, Is.EqualTo(1));
+        }
+
+        [UnityTest]
+        public IEnumerator ZeroWidthSourcePublishesBeforeLaterRealCapture()
+        {
+            region.style.width = 0;
+            yield return null; scope.Publish();
+            int published = 1;
+            scope.Replace(region, 1, () => published = 1, site);
+            scope.Replace(region, 2, () => published = 2, site);
+            Assert.That(published, Is.EqualTo(2));
+            Assert.That(renderer.CapturePending, Is.False);
+            region.style.width = 160; yield return null;
+            scope.Replace(region, 3, () => published = 3, site);
+            yield return Until(() => renderer.CapturePending);
+            Assert.That(published, Is.EqualTo(2));
+            renderer.CompleteCapture();
+            yield return Until(() => renderer.RenderPending); renderer.CompleteRender();
+            yield return Until(() => !scope.HasRetainedImage);
+            Assert.That(published, Is.EqualTo(3));
+            Assert.That(renderer.Image.Disposals, Is.EqualTo(1));
+        }
+
+        [UnityTest]
         public IEnumerator ContentReplacementRetainsSourceUntilCaptureAndNewLayoutAndUsesLatestPublication()
         {
             yield return null; scope.Publish();

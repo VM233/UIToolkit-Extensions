@@ -2,6 +2,15 @@
 
 All notable changes to this package are documented in this file.
 
+## [0.5.19] - 2026-11-15
+
+- Publish a finite zero-area old region without asking
+  a renderer to capture nonexistent source pixels. Real later content retains
+  the normal capture, publication, input and retirement protocol.
+- Reject incomplete/nonfinite source geometry and retain existing source images
+  during interruption.
+- Cover zero-height/zero-width to populated native source lifecycles.
+
 ## [0.5.18] - 2026-11-15
 
 - Restore the visibility lease's actual authored opacity and translation before
