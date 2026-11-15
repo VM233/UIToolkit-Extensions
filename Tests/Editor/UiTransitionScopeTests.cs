@@ -46,6 +46,46 @@ namespace VM233.UIElements.Editor.Tests
         }
 
         [UnityTest]
+        public IEnumerator ContentCapturePublishesAtItsHostCompletionWithoutAnotherScheduledTick()
+        {
+            yield return null; scope.Publish();
+            int published = 0, publicationThread = -1;
+            scope.Replace(region, 1, () => published = 1, site);
+            scope.Replace(region, 2, () =>
+            {
+                published = 2; publicationThread = System.Threading.Thread.CurrentThread.ManagedThreadId;
+            }, site);
+            yield return Until(() => renderer.CapturePending);
+            int completionThread = System.Threading.Thread.CurrentThread.ManagedThreadId;
+            renderer.CompleteCaptureOnHost();
+            Assert.That(published, Is.EqualTo(2));
+            Assert.That(publicationThread, Is.EqualTo(completionThread));
+            Assert.That(renderer.RenderPending, Is.True);
+            Assert.That(scope.Observe().Single().Phase, Is.EqualTo(UiTransitionPhase.WaitingReplacementLayout));
+            scope.Retire();
+            Assert.That(renderer.RenderTask.IsCanceled, Is.True);
+            Assert.That(renderer.Image.Disposals, Is.EqualTo(1));
+        }
+
+        [UnityTest]
+        public IEnumerator ContentTargetRenderStartsItsFadeAtHostCompletionWithoutAnotherScheduledTick()
+        {
+            yield return null; scope.Publish();
+            scope.Replace(region, 1, () => { }, site);
+            scope.Replace(region, 2, () => { }, site);
+            yield return Until(() => renderer.CapturePending);
+            renderer.CompleteCaptureOnHost();
+            Assert.That(renderer.RenderPending, Is.True);
+            renderer.CompleteRenderOnHost();
+            var frame = scope.Observe().Single();
+            Assert.That(frame.Phase, Is.EqualTo(UiTransitionPhase.Replacing));
+            Assert.That(frame.SourcePixelsRetained, Is.True);
+            Assert.That(renderer.Image.Opacity, Is.GreaterThan(.95f));
+            yield return Until(() => !scope.Observe().Single().Moving);
+            Assert.That(renderer.Image.Disposals, Is.EqualTo(1));
+        }
+
+        [UnityTest]
         public IEnumerator VisibilityRetainsOutgoingPixelsAndReleasesInput()
         {
             yield return null; scope.Publish();

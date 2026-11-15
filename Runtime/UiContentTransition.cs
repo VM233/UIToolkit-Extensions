@@ -64,7 +64,7 @@ namespace VM233.UIElements
             if (pending.Count == 0 && phase == UiTransitionPhase.CapturingReplacement && image == null) AbortBatch();
             if (pending.Count > 0 && phase is UiTransitionPhase.Replacing or UiTransitionPhase.WaitingReplacementLayout)
                 BeginCapture();
-            if (pending.Count > 0 || active.Length > 0) schedule.Resume();
+            if (phase == UiTransitionPhase.Shown && pending.Count > 0 || phase == UiTransitionPhase.Replacing) schedule.Resume();
         }
 
         internal void Remove(UiVisibilityTransition region)
@@ -83,59 +83,7 @@ namespace VM233.UIElements
                     if (pending.Count == 0) { schedule.Pause(); return; }
                     BeginCapture();
                 }
-                if (phase == UiTransitionPhase.CapturingReplacement && capture.IsCompleted)
-                {
-                    var operation = lifetime;
-                    var previousImage = image;
-                    var previousRegions = active;
-                    image = capture.GetAwaiter().GetResult();
-                    if (!image.ContainsSourcePixels) throw new InvalidOperationException("The admitted content image contains no actual source pixels.");
-                    imageBounds = selection.Bounds; active = selection.Regions;
-                    previousImage?.Dispose();
-                    if (!ReferenceEquals(operation, lifetime)) return;
-                    var retained = new HashSet<UiVisibilityTransition>(active);
-                    foreach (var region in previousRegions)
-                    {
-                        if (!retained.Contains(region) && regions.TryGetValue(region.Element, out var current) && ReferenceEquals(current, region))
-                            region.ClearContentPhase();
-                        if (!ReferenceEquals(operation, lifetime)) return;
-                    }
-                    publicationRoots.Clear();
-                    var publications = new Action[active.Length];
-                    for (int index = 0; index < active.Length; index++)
-                    {
-                        var region = active[index];
-                        if (!region.HasPendingContent) continue;
-                        pending.Remove(region); publicationRoots.Add(region.Element);
-                        publications[index] = region.TakeContentPublication();
-                    }
-                    phase = UiTransitionProtocol.NextContent(phase);
-                    for (int index = 0; index < active.Length; index++)
-                    {
-                        var region = active[index];
-                        region.SetContentPhase(phase, 0, true, image.CapturedFrame);
-                        if (!ReferenceEquals(operation, lifetime)) return;
-                        publications[index]?.Invoke();
-                        if (!ReferenceEquals(operation, lifetime)) return;
-                    }
-                    phase = UiTransitionProtocol.NextContent(phase);
-                    if (!Publish(0)) return;
-                    if (pending.Count > 0) { BeginCapture(); return; }
-                    rendered = renderer.WaitForRenderedFrameAsync(lifetime.Token);
-                    waitStarted(phase, rendered);
-                }
-                if (phase == UiTransitionPhase.WaitingReplacementLayout && rendered.IsCompleted)
-                {
-                    rendered.GetAwaiter().GetResult(); phase = UiTransitionProtocol.NextContent(phase);
-                    segment = new UiTransitionSegment(phase, 0, 1, clock(), duration);
-                }
-                if (phase == UiTransitionPhase.Replacing)
-                {
-                    double now = clock(); float progress = segment.Sample(now);
-                    image.SetSourceOpacity(1 - progress);
-                    if (!Publish(progress)) return;
-                    if (segment.Complete(now)) CompleteBatch();
-                }
+                if (phase == UiTransitionPhase.Replacing) AdvanceReplacement();
             }
             catch (Exception primary)
             {
@@ -143,6 +91,91 @@ namespace VM233.UIElements
                 retirement.Attempt(Retire);
                 retirement.ThrowIfFailed();
             }
+        }
+
+        private void CaptureCompleted(CancellationTokenSource operation, Task<IUiTransitionImage> completed)
+        {
+            if (!ReferenceEquals(operation, lifetime)) return;
+            try
+            {
+                var previousImage = image;
+                var previousRegions = active;
+                image = completed.GetAwaiter().GetResult();
+                if (!image.ContainsSourcePixels) throw new InvalidOperationException("The admitted content image contains no actual source pixels.");
+                imageBounds = selection.Bounds; active = selection.Regions;
+                previousImage?.Dispose();
+                if (!ReferenceEquals(operation, lifetime)) return;
+                var retained = new HashSet<UiVisibilityTransition>(active);
+                foreach (var region in previousRegions)
+                {
+                    if (!retained.Contains(region) && regions.TryGetValue(region.Element, out var current) && ReferenceEquals(current, region))
+                        region.ClearContentPhase();
+                    if (!ReferenceEquals(operation, lifetime)) return;
+                }
+                publicationRoots.Clear();
+                var publications = new Action[active.Length];
+                for (int index = 0; index < active.Length; index++)
+                {
+                    var region = active[index];
+                    if (!region.HasPendingContent) continue;
+                    pending.Remove(region); publicationRoots.Add(region.Element);
+                    publications[index] = region.TakeContentPublication();
+                }
+                phase = UiTransitionProtocol.NextContent(phase);
+                for (int index = 0; index < active.Length; index++)
+                {
+                    var region = active[index];
+                    region.SetContentPhase(phase, 0, true, image.CapturedFrame);
+                    if (!ReferenceEquals(operation, lifetime)) return;
+                    publications[index]?.Invoke();
+                    if (!ReferenceEquals(operation, lifetime)) return;
+                }
+                phase = UiTransitionProtocol.NextContent(phase);
+                if (!Publish(0)) return;
+                if (pending.Count > 0) { BeginCapture(); return; }
+                var targetFrame = renderer.WaitForRenderedFrameAsync(operation.Token);
+                rendered = targetFrame;
+                waitStarted(phase, targetFrame);
+                if (!ReferenceEquals(operation, lifetime)) return;
+                ContinueWhenReady(targetFrame, () => RenderCompleted(operation, targetFrame));
+            }
+            catch (Exception primary) { ReportCompletionFailure(primary); }
+        }
+
+        private void RenderCompleted(CancellationTokenSource operation, Task completed)
+        {
+            if (!ReferenceEquals(operation, lifetime)) return;
+            try
+            {
+                completed.GetAwaiter().GetResult(); phase = UiTransitionProtocol.NextContent(phase);
+                segment = new UiTransitionSegment(phase, 0, 1, clock(), duration);
+                schedule.Resume(); AdvanceReplacement();
+            }
+            catch (Exception primary) { ReportCompletionFailure(primary); }
+        }
+
+        private void AdvanceReplacement()
+        {
+            double now = clock(); float progress = segment.Sample(now);
+            image.SetSourceOpacity(1 - progress);
+            if (!Publish(progress)) return;
+            if (segment.Complete(now)) CompleteBatch();
+        }
+
+        private static void ContinueWhenReady(Task task, Action continuation)
+        {
+            if (task.IsCompleted) continuation();
+            else task.GetAwaiter().OnCompleted(continuation);
+        }
+
+        private void ReportCompletionFailure(Exception primary)
+        {
+            var retirement = new UiTransitionRetirement(primary);
+            retirement.Attempt(Retire);
+            // A renderer completion has no synchronous caller to receive a throw.
+            // Retire every resource, then report the complete failure through Unity.
+            try { retirement.ThrowIfFailed(); }
+            catch (Exception failure) { Debug.LogException(failure); }
         }
 
         private void BeginCapture()
@@ -156,12 +189,16 @@ namespace VM233.UIElements
             var operation = new CancellationTokenSource();
             lifetime = operation; capture = null; rendered = null; selection = null; segment = null;
             phase = UiTransitionPhase.CapturingReplacement;
+            schedule.Pause();
             try
             {
                 if (previousLifetime != null) ReleaseWaits(previousLifetime, previousCapture, previousRendered, image, true);
                 if (!ReferenceEquals(operation, lifetime)) return;
-                capture = renderer.CaptureAsync(root, CaptureBounds, operation.Token);
-                waitStarted(phase, capture);
+                var sourceFrame = renderer.CaptureAsync(root, CaptureBounds, operation.Token);
+                capture = sourceFrame;
+                waitStarted(phase, sourceFrame);
+                if (!ReferenceEquals(operation, lifetime)) return;
+                ContinueWhenReady(sourceFrame, () => CaptureCompleted(operation, sourceFrame));
             }
             catch (Exception primary)
             {
@@ -231,6 +268,7 @@ namespace VM233.UIElements
                 if (regions.TryGetValue(region.Element, out var current) && ReferenceEquals(current, region))
                     release.Attempt(region.ClearContentPhase);
             release.ThrowIfFailed();
+            if (pending.Count > 0) schedule.Resume(); else schedule.Pause();
         }
 
         private static void ReleaseWaits(CancellationTokenSource ownedLifetime, Task<IUiTransitionImage> ownedCapture,

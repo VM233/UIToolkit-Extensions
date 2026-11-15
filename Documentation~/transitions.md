@@ -90,6 +90,13 @@ change retains the live source until the renderer captures its actual pixels.
 The scope then publishes the latest callback under the opaque source image,
 waits for a real rendered target layout, and crossfades that image over the live
 target for one complete configured duration. There is no empty outgoing interval.
+The actual renderer Task completion advances each handoff on the host's captured
+synchronization context. It does not wait for a later animation-schedule poll.
+The schedule still coalesces initial requests and advances the fade. Each terminal
+callback carries its exact task/lifetime and checks ownership before accessing UI;
+obsolete completions cannot publish after cancellation, redirection or retirement.
+An asynchronous completion fault retires all resources and logs the complete
+retirement exception through Unity, matching the diagnostic boundary of scheduled UI.
 Keep related titles, content and actions inside the same region and callback.
 Same-identity live values can update immediately. Returning to the published
 identity before an initial capture cancels the unpublished replacement.

@@ -13,6 +13,7 @@ namespace VM233.UIElements.Editor.Tests
         private TaskCompletionSource<bool> render;
         private CancellationTokenRegistration captureCancellation, renderCancellation;
         private Func<Rect> captureBounds;
+        private SynchronizationContext captureContext, renderContext;
         internal Task CaptureTask => capture.Task;
         internal Task RenderTask => render.Task;
         internal bool CapturePending => capture != null && !capture.Task.IsCompleted;
@@ -21,6 +22,7 @@ namespace VM233.UIElements.Editor.Tests
 
         public Task<IUiTransitionImage> CaptureAsync(VisualElement root, Func<Rect> bounds, CancellationToken cancellationToken)
         {
+            captureContext = SynchronizationContext.Current;
             captureBounds = bounds;
             capture = new TaskCompletionSource<IUiTransitionImage>();
             var owned = capture;
@@ -42,6 +44,7 @@ namespace VM233.UIElements.Editor.Tests
 
         public Task WaitForRenderedFrameAsync(CancellationToken cancellationToken)
         {
+            renderContext = SynchronizationContext.Current;
             render = new TaskCompletionSource<bool>();
             var owned = render;
             renderCancellation = cancellationToken.Register(() =>
@@ -54,6 +57,16 @@ namespace VM233.UIElements.Editor.Tests
         internal void CompleteRender()
         {
             renderCancellation.Dispose(); render.SetResult(true);
+        }
+
+        internal void CompleteCaptureOnHost() => OnHost(captureContext, CompleteCapture);
+        internal void CompleteRenderOnHost() => OnHost(renderContext, CompleteRender);
+        private static void OnHost(SynchronizationContext context, Action complete)
+        {
+            var previous = SynchronizationContext.Current;
+            SynchronizationContext.SetSynchronizationContext(context);
+            try { complete(); }
+            finally { SynchronizationContext.SetSynchronizationContext(previous); }
         }
 
         internal sealed class ControlledImage : IUiTransitionImage

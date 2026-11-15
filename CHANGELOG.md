@@ -2,6 +2,15 @@
 
 All notable changes to this package are documented in this file.
 
+## [0.5.21] - 2026-11-15
+
+- Advance captured-content publication and target-render handoff from their
+  actual renderer Task completion on the host context, removing idle scheduled
+  frames while preserving source pixels, real target rendering and fade duration.
+- Keep exact lifetime ownership through cancellation, redirection and retirement;
+  completion faults retire resources and surface through Unity diagnostics.
+- Cover both native host-completion boundaries without another scheduled tick.
+
 ## [0.5.20] - 2026-11-15
 
 - Evaluate source area only for an actual changed-content replacement after
