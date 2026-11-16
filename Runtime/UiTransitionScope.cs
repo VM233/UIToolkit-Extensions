@@ -102,6 +102,8 @@ namespace VM233.UIElements
             }
         }
 
+        public void CommitContent() => content.CommitPendingContent();
+
         public void Initialize(VisualElement element, Action initialize)
         {
             RequireUnpublishedMutation(element);

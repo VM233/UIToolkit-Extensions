@@ -111,6 +111,56 @@ namespace VM233.UIElements.Editor.Tests
         }
 
         [UnityTest]
+        public IEnumerator ContentCommitCapturesTheCompleteBatchWithoutPublishingEarly()
+        {
+            var other = new VisualElement(); other.style.height = 40; other.style.width = 160;
+            window.rootVisualElement.Add(other);
+            yield return null; scope.Publish();
+            int first = 0, second = 0;
+            scope.Replace(region, 1, () => first = 1, site);
+            scope.Replace(other, 1, () => second = 1, site);
+            scope.Replace(region, 2, () => first = 2, site);
+            scope.Replace(region, 3, () => first = 3, site);
+            scope.Replace(other, 2, () => second = 2, site);
+            Assert.That(renderer.CapturePending, Is.False);
+            scope.CommitContent();
+            Assert.That(renderer.CapturePending, Is.True);
+            Assert.That(first, Is.EqualTo(1)); Assert.That(second, Is.EqualTo(1));
+            var capture = renderer.CaptureTask;
+            scope.CommitContent();
+            Assert.That(renderer.CaptureTask, Is.SameAs(capture));
+            renderer.CompleteCaptureOnHost();
+            Assert.That(first, Is.EqualTo(3)); Assert.That(second, Is.EqualTo(2));
+            Assert.That(renderer.RenderPending, Is.True);
+            var rendered = renderer.RenderTask;
+            scope.CommitContent();
+            Assert.That(renderer.RenderTask, Is.SameAs(rendered));
+            renderer.CompleteRenderOnHost();
+            Assert.That(scope.Observe().All(frame => frame.Phase == UiTransitionPhase.Replacing), Is.True);
+            float opacity = renderer.Image.Opacity;
+            scope.CommitContent();
+            Assert.That(renderer.Image.Opacity, Is.EqualTo(opacity));
+            scope.Retire();
+            Assert.That(renderer.Image.Disposals, Is.EqualTo(1));
+        }
+
+        [UnityTest]
+        public IEnumerator ContentCommitRetirementCancelsTheActualCapture()
+        {
+            yield return null; scope.Publish();
+            int published = 0;
+            scope.Replace(region, 1, () => published = 1, site);
+            scope.Replace(region, 2, () => published = 2, site);
+            scope.CommitContent();
+            Assert.That(renderer.CapturePending, Is.True);
+            var capture = renderer.CaptureTask;
+            scope.Retire(); scope.CommitContent();
+            Assert.That(capture.IsCanceled, Is.True);
+            Assert.That(published, Is.EqualTo(1));
+            Assert.That(scope.Observe(), Is.Empty);
+        }
+
+        [UnityTest]
         public IEnumerator ContentCapturePublishesAtItsHostCompletionWithoutAnotherScheduledTick()
         {
             yield return null; scope.Publish();

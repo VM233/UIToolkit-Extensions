@@ -74,6 +74,11 @@ namespace VM233.UIElements
                 pending.Count == 0 && phase == UiTransitionPhase.CapturingReplacement && image == null) AbortBatch();
         }
 
+        internal void CommitPendingContent()
+        {
+            if (phase == UiTransitionPhase.Shown && pending.Count > 0) Tick();
+        }
+
         private void Tick()
         {
             try

@@ -2,6 +2,14 @@
 
 All notable changes to this package are documented in this file.
 
+## [0.5.23] - 2026-11-17
+
+- Admit a complete coalesced content batch in the producer dispatch without an
+  idle scheduled tick. Retain actual source capture, target rendering, fade
+  timing, input ownership and retirement.
+- Cover multi-region coalescing, no early publication or duplicate capture,
+  unchanged in-flight work and exact capture cancellation on native panels.
+
 ## [0.5.22] - 2026-11-16
 
 - Add explicit same-dispatch visibility admission for a coherent update to

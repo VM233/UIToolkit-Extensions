@@ -38,6 +38,15 @@ Do not use it halfway through
 an update or to bypass first native style/layout adoption for newly created controls.
 Other requests retain their normal scheduled coalescing.
 
+After all replacements in one coherent synchronous update, `scope.CommitContent()`
+admits the complete pending content batch before the next scheduled tick. Call it
+at the end of the producer update, never between related replacement requests.
+It starts the normal source capture only when the content owner is idle; a
+capture, target-render wait or fade already in progress is left unchanged.
+Actual old pixels, target layout/render completion, input barriers, coalescing,
+fade clocks and cancellation remain with the same owner. This removes admission
+latency, not native rendering work or animation duration.
+
 Visibility uses the same region and animation as Display, and retains layout at
 its hidden terminal state. Both display and visibility intents must admit drawing.
 Use StyleKeyword.Null to reveal inherited content without overriding a hidden
